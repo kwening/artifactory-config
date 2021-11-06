@@ -8,8 +8,8 @@ Artifactory instance.
 * permissions
 * repos (local, remote, virtual)
 
-This app comes packaged as a Docker image or as an Python package build from
-sources.
+This app comes packaged as a Docker image and is available in Docker Hub `kwening/artifactory-config`.   
+Alternatively it can be run from source as a Python script.
 
 ## Running the app
 
@@ -19,10 +19,10 @@ sources.
 docker run -it kwening/artifactory-config
 ```
 
-**Run Python module**
+**Run Python cli app**
 
 ```shell
-python -m artifactory_config
+bin/artifactoryconfig
 ```
 
 ### Parameters
@@ -37,13 +37,9 @@ python -m artifactory_config
 | -q --quiet |  | | Quiet mode |
 | -v --verbose |  | | Verbose mode |
 
-Environment vars:
-
-* ARTIFACTORY_URL
-* ARTIFACTORY_USER
-* ARTIFACTORY_TOKEN
-
 ## Local Development
+
+Dependencies are managed by `pipenv`.
 
 ```shell
 pipenv --python 3.9
@@ -62,7 +58,4 @@ docker build -t kwening/artifactory-config:1.0.0 .
 ```shell
 # Export env vars for execution
 set -o allexport; source .env; set +o allexport
-
-# Run app
-bin/artifactoryconfig -c config
 ```
