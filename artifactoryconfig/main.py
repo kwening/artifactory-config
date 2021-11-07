@@ -21,7 +21,7 @@ def main(args):
     """
     args = helper.parse_args(args)
     helper.setup_logging(args.loglevel)
-    config_objects = config.read_configuration_from_folder(args.config_folder)
+    config_objects = config.read_configuration(args.config_folder, args.vault_files, args.vault_secret)
 
     artifactory.init_connection(args.artifactory_url, args.artifactory_user, args.artifactory_token)
     artifactory.apply_configuration(config_objects, args.dry_run)

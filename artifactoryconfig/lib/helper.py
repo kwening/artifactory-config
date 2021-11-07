@@ -58,6 +58,18 @@ def parse_args(args):
         default=os.getenv("CONFIG_FOLDER", "config"),
         help="path to folder containing configuration files",
     )
+    parser.add_argument(
+        "--vault-files",
+        dest="vault_files",
+        default=os.getenv("VAULT_FILES", ""),
+        help="(comma-separated) list of paths to file(s) with ansible-vault encrypted secrets",
+    )
+    parser.add_argument(
+        "--vault-secret",
+        dest="vault_secret",
+        default=os.getenv("VAULT_SECRET", ""),
+        help="secret to decrypt vault files",
+    )
 
     parser.add_argument(
         '--dry-run',

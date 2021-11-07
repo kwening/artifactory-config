@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 pyyaml = "*"
 pyartifactory = "*"
+ansible-vault = "*"
+jinja2 = "*"
 
 [dev-packages]
 

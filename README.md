@@ -8,6 +8,8 @@ Artifactory instance.
 * permissions
 * repos (local, remote, virtual)
 
+Ansible vault encrypted files can be read and its values can be used in Jinja2 templated files.
+
 This app comes packaged as a Docker image and is available in Docker Hub `kwening/artifactory-config`.   
 Alternatively it can be run from source as a Python script.
 
@@ -34,6 +36,8 @@ bin/artifactoryconfig
 | --token | ARTIFACTORY_TOKEN | | Token to access the Artifactory system |
 | -c --config-folder | CONFIG_FOLDER | | Folder containing config files |
 | --dry-run | DRY_RUN | false | Dry run without any changes |
+| --vault-files | VAULT_FILES | | Comma separated list of ansible-vault encrypted files |
+| --vault-secret | VAULT_SECRET | | Secret for vault decryption |
 | -q --quiet |  | | Quiet mode |
 | -v --verbose |  | | Verbose mode |
 
