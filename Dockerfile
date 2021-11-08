@@ -14,9 +14,12 @@ COPY requirements.txt .
 COPY artifactoryconfig ./artifactoryconfig
 COPY bin ./bin
 
-RUN pip install -r requirements.txt && \
-    rm -rf requirements.txt
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
+    apk add --no-cache build-base libffi-dev openssl-dev && \
+    pip install -r requirements.txt && \
+    apk del -r build-base libffi-dev openssl-dev && \
+    rm -rf /var/cache/apk/* requirements.txt /usr/local/lib/python3.9/site-packages/ansible_collections
 
-USER 65534:65534
+USER appuser
 
 CMD [ "bin/artifactoryconfig" ]

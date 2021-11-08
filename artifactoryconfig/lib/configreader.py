@@ -9,7 +9,6 @@ from glob import glob
 from json import JSONDecodeError
 from jinja2 import Template
 
-from ansible.constants import DEFAULT_VAULT_ID_MATCH
 from ansible.parsing.vault import VaultLib, VaultSecret
 
 
@@ -79,7 +78,6 @@ def read_yaml_configs(config_folder: str, config_objects: dict, secrets: dict) -
             config_objects = {key: {**yaml_config.get(key, {}), **config_objects.get(key, {})}
                               for key in combined_keys}
 
-    print(config_objects)
     return config_objects
 
 
@@ -92,14 +90,14 @@ def read_vault_files(vault_files: str, vault_secret: str) -> dict:
     :return: a dict with the secrets from all files
     """
     if vault_files == "" or vault_secret == "":
-        return
+        return {}
 
     logging.info("Decrypting vault encrypted files")
     secrets = {}
 
     vault_file_list = [x.strip() for x in vault_files.split(',')]
     vault_regex = re.compile(r'(^(\S*):.*\n(\s*)(\$ANSIBLE_VAULT\S*\n(\s+\w*\n?)*))', re.MULTILINE)
-    vault = VaultLib([(DEFAULT_VAULT_ID_MATCH, VaultSecret(vault_secret.encode()))])
+    vault = VaultLib([('default', VaultSecret(vault_secret.encode()))])
 
     for file in vault_file_list:
         with open(file, 'r') as f:

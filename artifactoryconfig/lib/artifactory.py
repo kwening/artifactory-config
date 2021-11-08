@@ -58,7 +58,6 @@ def apply_user_config(art, config_objects, current_config, dry_run: bool):
 
     for key, value in config_objects['users'].items():
         logging.info(f"Processing user '{key}'")
-        logging.info(f"{value}")
         # value = map_fields(value, {'disableUIAccess': 'disable_ui',
         #                            'profileUpdatable': 'profile_updatable'})
         try:
