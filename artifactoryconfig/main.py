@@ -3,7 +3,7 @@ import logging
 
 import lib.helper as helper
 import lib.artifactory as artifactory
-import lib.configreader as config
+import lib.configreader as configreader
 
 __author__ = "Klaus Wening"
 __copyright__ = "Klaus Wening"
@@ -19,12 +19,12 @@ def main(args):
       args (List[str]): command line parameters as list of strings
           (for example  ``["--verbose", "42"]``).
     """
-    args = helper.parse_args(args)
-    helper.setup_logging(args.loglevel)
-    config_objects = config.read_configuration(args.config_folder, args.vault_files, args.vault_secret)
+    config = helper.parse_args(args)
+    helper.setup_logging(config.loglevel)
+    config_objects = configreader.read_configuration(config)
 
-    artifactory.init_connection(args.artifactory_url, args.artifactory_user, args.artifactory_token)
-    artifactory.apply_configuration(config_objects, args.dry_run)
+    artifactory.init_connection(config.artifactory_url, config.artifactory_user, config.artifactory_token)
+    artifactory.apply_configuration(config_objects, config.dry_run)
 
 
 def run():
