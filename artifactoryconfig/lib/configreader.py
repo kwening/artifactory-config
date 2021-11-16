@@ -96,21 +96,24 @@ def read_vault_files(config) -> dict:
 
     logging.info("Decrypting vault encrypted files")
 
-    vault_regex = re.compile(r'(^\s*(\S*):.*\n(\s*)(\$ANSIBLE_VAULT\S*\n(\s+\w*\n?)*))', re.MULTILINE)
+    vault_regex = re.compile(r'(^\s*(\S*):.*\n(\s*)(\$ANSIBLE_VAULT\S*\n(\s+[0-9a-f]+\n+)*))', re.MULTILINE)
     vault = VaultLib([('default', VaultSecret(config.vault_secret.encode()))])
     secrets = {}
 
     for file in config.get_vault_files():
         logging.info(f"Decrypting secrets from '{file}'")
-        with open(file, 'r+') as f:
+        with open(file, 'r') as f:
             content = f.read()
+            # append newline to content so our vault_regex matches on files missing newlines at end
+            content = content + "\n"
             for match in vault_regex.findall(content):
                 yaml_key = match[1]
                 indentation = match[2]
                 value = match[3]
+                logging.info(f"Decrypting key '{yaml_key}', value: {value}")
 
                 if vault.is_encrypted(value):
-                    plain_value = vault.decrypt(value.replace(indentation, '')).decode('UTF-8')
+                    plain_value = vault.decrypt(value.replace(indentation, '').strip()).decode('UTF-8')
                     value = value.replace("$", f"{indentation}\\$")
                     content = re.sub(fr"{yaml_key}:.*{value}", f"{yaml_key}: {plain_value}\n", content, flags=re.DOTALL)
 
