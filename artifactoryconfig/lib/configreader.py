@@ -28,6 +28,10 @@ def read_configuration(app_config) -> dict:
     return config_objects
 
 
+def read_config_folder(config_folder: str, app_config):
+    pass
+
+
 def read_json_configs(config_folder: str, config_objects: dict, secrets: dict) -> dict:
     """Read all json based (old) configuration files from folders users, groups and permissions and return
     dict of all found config objects
@@ -110,11 +114,13 @@ def read_vault_files(config) -> dict:
                 yaml_key = match[1]
                 indentation = match[2]
                 value = match[3]
-                logging.info(f"Decrypting key '{yaml_key}', value: {value}")
+                logging.debug(f"Decrypting key '{yaml_key}', value: {value}")
 
                 if vault.is_encrypted(value):
                     plain_value = vault.decrypt(value.replace(indentation, '').strip()).decode('UTF-8')
-                    value = value.replace("$", f"{indentation}\\$")
+                    value = value.replace("$", f"{indentation}$")
+                    value = re.escape(value)
+                    plain_value = re.escape(plain_value)
                     content = re.sub(fr"{yaml_key}:.*{value}", f"{yaml_key}: {plain_value}\n", content, flags=re.DOTALL)
 
             new_secrets = yaml.safe_load(content) or {}
