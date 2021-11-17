@@ -2,7 +2,7 @@ import logging
 import requests
 
 from pyartifactory import Artifactory
-from pyartifactory.models import NewUser, User, Group, Permission, LocalRepository, RemoteRepository
+from pyartifactory.models import NewUser, User, Group, LocalRepository, RemoteRepository, PermissionV2
 
 _GLOB = {}
 
@@ -116,7 +116,7 @@ def apply_permission_config(art, config_objects, current_config, dry_run: bool):
 
     for key, value in config_objects['permissions'].items():
         logging.info(f"Processing permission '{key}'")
-        permission = Permission(**value)
+        permission = PermissionV2(**value)
 
         try:
             if any(x.name == key for x in current_config['permissions']):
