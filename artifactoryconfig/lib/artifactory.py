@@ -2,7 +2,8 @@ import logging
 import requests
 
 from pyartifactory import Artifactory
-from pyartifactory.models import NewUser, User, Group, LocalRepository, RemoteRepository, PermissionV2
+from pyartifactory.models import NewUser, User, Group, LocalRepository, RemoteRepository, PermissionV2, \
+    VirtualRepository
 
 _GLOB = {}
 
@@ -32,8 +33,11 @@ def get_configuration() -> dict:
     current_config = {'users': art.users.list(),
                       'groups': art.groups.list(),
                       'permissions': art.permissions.list(),
-                      'repos': art.repositories.list()
+                      'localRepos': [repo for repo in art.repositories.list() if repo.type == 'LOCAL'],
+                      'remoteRepos': [repo for repo in art.repositories.list() if repo.type == 'REMOTE'],
+                      'virtualRepos': [repo for repo in art.repositories.list() if repo.type == 'VIRTUAL']
                       }
+
     logging.debug(f"Current configuration {current_config}")
 
     return current_config
@@ -49,8 +53,9 @@ def apply_configuration(config_objects: dict, dry_run: bool):
     apply_user_config(art, config_objects, current_config, dry_run)
     apply_group_config(art, config_objects, current_config, dry_run)
     apply_permission_config(art, config_objects, current_config, dry_run)
-    apply_local_repo_config(art, config_objects['localRepositories'], current_config['repos'], dry_run)
-    apply_remote_repo_config(art, config_objects['remoteRepositories'], current_config['repos'], dry_run)
+    apply_local_repo_config(art, config_objects['localRepositories'], current_config['localRepos'], dry_run)
+    apply_remote_repo_config(art, config_objects['remoteRepositories'], current_config['remoteRepos'], dry_run)
+    apply_virtual_repo_config(art, config_objects['virtualRepositories'], current_config['virtualRepos'], dry_run)
 
 
 def apply_user_config(art, config_objects, current_config, dry_run: bool):
@@ -189,6 +194,33 @@ def apply_remote_repo_config(art, config_objects, current_config, dry_run: bool)
 
     for unmanaged in current_config:
         logging.info(f"Unmanaged remote repo '{unmanaged.key}' found")
+
+
+def apply_virtual_repo_config(art, config_objects, current_config, dry_run: bool):
+    logging.info("#####   Applying virtual repo configs   #####")
+
+    for key, value in config_objects.items():
+        logging.info(f"Processing virtual repo '{key}'")
+        value['key'] = key
+        repo = VirtualRepository(**value)
+
+        try:
+            if any(x.key == key for x in current_config):
+                if not dry_run:
+                    art.repositories.update_repo(repo)
+                action = 'updated'
+                current_config.remove(
+                    next((x for x in current_config if x.key == key), None))
+            else:
+                if not dry_run:
+                    art.repositories.create_virtual_repo(repo)
+                action = 'created'
+            logging.info(f"Virtual repo '{key}' successfully {action}")
+        except requests.exceptions.HTTPError as e:
+            log_api_error(e)
+
+    for unmanaged in current_config:
+        logging.info(f"Unmanaged virtual repo '{unmanaged.key}' found")
 
 
 def log_api_error(e):

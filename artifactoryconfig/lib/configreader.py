@@ -12,8 +12,6 @@ from ansible.parsing.vault import VaultLib, VaultSecret
 
 
 def read_configuration(app_config) -> dict:
-    if not os.path.isdir(app_config.config_folder):
-        raise RuntimeError(f"Config folder '{app_config.config_folder}' doesn't exist")
 
     secrets = read_vault_files(app_config)
 
@@ -22,14 +20,21 @@ def read_configuration(app_config) -> dict:
                       "remoteRepositories": {},
                       "virtualRepositories": {},
                       }
-    config_objects = read_json_configs(app_config.config_folder, config_objects, secrets)
-    config_objects = read_yaml_configs(app_config, config_objects, secrets)
+    for folder in app_config.config_folder:
+        config_objects = read_config_folder(folder, app_config, config_objects, secrets)
+
     logging.debug(f"Final configuration\n{pformat(config_objects)}")
     return config_objects
 
 
-def read_config_folder(config_folder: str, app_config):
-    pass
+def read_config_folder(config_folder: str, app_config, config_objects, secrets) -> dict:
+    if not os.path.isdir(config_folder):
+        logging.error(f"Config folder '{config_folder}' doesn't exist")
+        exit(0)
+
+    config_objects = read_json_configs(config_folder, config_objects, secrets)
+    config_objects = read_yaml_configs(config_folder, app_config, config_objects, secrets)
+    return config_objects
 
 
 def read_json_configs(config_folder: str, config_objects: dict, secrets: dict) -> dict:
@@ -44,7 +49,7 @@ def read_json_configs(config_folder: str, config_objects: dict, secrets: dict) -
     types = ["users", "groups", "permissions"]
 
     for config_type in types:
-        logging.info(f"Processing json config '{config_type}'")
+        logging.info(f"Processing json config '{config_type}' in folder '{config_folder}'")
         for f_name in glob(f"{config_folder}/**/{config_type}/*.json", recursive=True):
             logging.info(f"Reading config file '{f_name}'")
             with open(f_name) as json_file:
@@ -60,17 +65,18 @@ def read_json_configs(config_folder: str, config_objects: dict, secrets: dict) -
     return config_objects
 
 
-def read_yaml_configs(config, config_objects: dict, secrets: dict) -> dict:
+def read_yaml_configs(config_folder: str, config, config_objects: dict, secrets: dict) -> dict:
     """
     Read all yaml based configuration files from config folder and subfolders and return
     dict of all found config objects
+    :param config_folder: the folder to read from
     :param config: the config class holding config settings
     :param secrets: dict of decoded secret variables
     :param config_objects: a dict with pre-initialized config objects
     :return: the merged dict with all config object
     """
-    logging.info("Processing yaml configs")
-    for f_name in glob(f'{config.config_folder}/**/*.yaml', recursive=True) + glob(f'{config.config_folder}/*.yaml'):
+    logging.info(f"Processing yaml configs in folder '{config_folder}'")
+    for f_name in glob(f'{config_folder}/**/*.yaml', recursive=True) + glob(f'{config_folder}/*.yaml'):
         # Skip config file and vault files
         if f_name == config.config_file or f_name in config.get_vault_files():
             continue

@@ -134,7 +134,7 @@ class Config:
     artifactory_url: str = ""
     artifactory_user: str = ""
     artifactory_token: str = ""
-    config_folder: str = ""
+    config_folder: list = None
     vault_files: str = ""
     vault_files_pattern: str = ""
     vault_secret: str = ""
@@ -144,8 +144,12 @@ class Config:
     def __init__(self, initial_data=None):
         if initial_data is None:
             initial_data = {}
+
         for key in initial_data:
-            setattr(self, key, initial_data[key])
+            if key == "config_folder":
+                self._init_config_folders(initial_data[key])
+            else:
+                setattr(self, key, initial_data[key])
 
     def from_yaml(self, config_file: str):
         if not os.path.isfile(config_file):
@@ -166,6 +170,17 @@ class Config:
         if self.vault_files != "":
             return [x.strip() for x in self.vault_files.split(',')]
         else:
-            # use glob pattern to detect vault files
-            return glob(f'{self.config_folder}/{self.vault_files_pattern}', recursive=True)
+            files = []
+
+            for folder in self.config_folder:
+                # use glob pattern to detect vault files
+                files.extend(glob(f'{folder}/{self.vault_files_pattern}', recursive=True))
+
+            return files
+
+    def _init_config_folders(self, config_folders):
+        if isinstance(config_folders, list):
+            self.config_folder = config_folders
+        elif isinstance(config_folders, str):
+            self.config_folder = config_folders.split(',')
 
