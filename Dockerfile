@@ -1,4 +1,4 @@
-FROM python:3.9-alpine
+FROM python:3.9-alpine AS builder
 #ENV         PYTHONUNBUFFERED=1
 ENV ARTIFACTORY_URL=""
 ENV ARTIFACTORY_USER=""
@@ -12,14 +12,22 @@ WORKDIR /app
 
 COPY requirements.txt .
 COPY artifactoryconfig ./artifactoryconfig
-COPY bin ./bin
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
-    apk add --no-cache build-base libffi-dev openssl-dev && \
+RUN apk add --no-cache build-base libffi-dev openssl-dev && \
     pip install -r requirements.txt && \
-    apk del -r build-base libffi-dev openssl-dev && \
-    rm -rf /var/cache/apk/* requirements.txt /usr/local/lib/python3.9/site-packages/ansible_collections
+    pip install pyinstaller &&\
+    pyinstaller artifactoryconfig/main.py --onefile
+
+CMD [ "bin/artifactoryconfig" ]
+
+
+FROM alpine:3.15
+
+COPY --from=builder /app/dist/main /app/main
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 USER appuser
 
-CMD [ "bin/artifactoryconfig" ]
+ENTRYPOINT ["/app/main"]
+CMD [ "-h" ]

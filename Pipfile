@@ -10,6 +10,7 @@ jinja2 = "*"
 ansible-core = "*"
 
 [dev-packages]
+pyinstaller = "*"
 
 [requires]
 python_version = "3.9"
