@@ -106,6 +106,7 @@ def apply_group_config(art, config_objects, current_config, dry_run: bool):
             else:
                 if not dry_run:
                     art.groups.create(group)
+                    art.groups.update(group)
                 action = 'created'
 
             logging.info(f"Group '{key}' successfully {action}")
