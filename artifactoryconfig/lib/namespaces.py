@@ -99,6 +99,7 @@ class Namespace:
     thirdparty_public_patterns: list
     thirdparty_internal_patterns: list
     thirdparty_restricted_patterns: list
+    additional_repos: list
 
     def __init__(self, initial_dict=None):
         if initial_dict is None:
@@ -112,6 +113,7 @@ class Namespace:
         self.thirdparty_public_patterns = as_list(initial_dict.get('publicThirdpartyPattern'))
         self.thirdparty_internal_patterns = as_list(initial_dict.get('internalThirdpartyPattern'))
         self.thirdparty_restricted_patterns = as_list(initial_dict.get('restrictedThirdpartyPattern'))
+        self.additional_repos = as_list(initial_dict.get('additionalRepos'))
 
     def get_all_patterns(self) -> list:
         patterns = self.public_patterns
@@ -161,6 +163,9 @@ class PermissionTarget:
             self.users = dict((get_item_with_permissions(x)) for x in namespace.users)
             self.groups = dict((get_item_with_permissions(x)) for x in namespace.groups)
             self.include_patterns = namespace.get_all_patterns()
+
+            if namespace.additional_repos:
+                self.repositories.extend(namespace.additional_repos)
         elif str is not None:
             self.name = name
 
