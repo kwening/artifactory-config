@@ -48,7 +48,7 @@ def apply_configuration(config_objects: dict, dry_run: bool):
     art = get_artifactory()
 
     if dry_run:
-        logging.info("Dry run enabled - no changes will be made")
+        logging.info("Dry run enabled - no changes will be deployed")
 
     apply_user_config(art, config_objects, current_config, dry_run)
     apply_group_config(art, config_objects, current_config, dry_run)

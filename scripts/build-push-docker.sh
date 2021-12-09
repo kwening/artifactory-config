@@ -1,4 +1,8 @@
 #!/bin/bash
+IMAGE_NAME="kwening/artifactory-config"
+TAG=$(date +"%Y%m%d-%H%M%S")
 
-export TAG=$(date +"%Y%m%d-%H%M%S");buildah bud -t docker.io/kwening/artifactoryconfig:$TAG --format docker .
-buildah push docker.io/kwening/artifactoryconfig:$TAG
+buildah bud -t docker.io/$IMAGE_NAME:$TAG --format docker .
+buildah push docker.io/$IMAGE_NAME:$TAG
+
+echo "Image docker.io/$IMAGE_NAME:$TAG successfully built"

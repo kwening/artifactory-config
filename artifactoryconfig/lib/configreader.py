@@ -78,7 +78,7 @@ def read_yaml_configs(config_folder: str, config, config_objects: dict, secrets:
     logging.info(f"Processing yaml configs in folder '{config_folder}'")
     for f_name in glob(f'{config_folder}/**/*.yaml', recursive=True) + glob(f'{config_folder}/*.yaml'):
         # Skip config file and vault files
-        if f_name == config.config_file or f_name in config.get_vault_files():
+        if f_name == config.config_file or f_name in config.vault_file_list:
             continue
 
         logging.info(f"Reading config file '{f_name}'")
@@ -101,7 +101,7 @@ def read_vault_files(config) -> dict:
     :param config: the config class holding config settings
     :return: a dict with the secrets from all files
     """
-    if (config.vault_files == "" and config.vault_files_pattern == "") or config.vault_secret == "":
+    if not config.vault_file_list:
         return {}
 
     logging.info("Decrypting vault encrypted files")
@@ -110,7 +110,7 @@ def read_vault_files(config) -> dict:
     vault = VaultLib([('default', VaultSecret(config.vault_secret.encode()))])
     secrets = {}
 
-    for file in config.get_vault_files():
+    for file in config.vault_file_list:
         logging.info(f"Decrypting secrets from '{file}'")
         with open(file, 'r') as f:
             content = f.read()
