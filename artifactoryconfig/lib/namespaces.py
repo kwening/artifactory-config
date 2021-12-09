@@ -60,8 +60,23 @@ def read_namespaces(config):
     write_markdown_doc(namespaces_markdown, config)
 
 
-def get_write_permissions() -> list:
-    return ["read", "write", "annotate", "delete"]
+def get_item_with_permissions(item: str):
+    permission = "rwad"
+    user = item
+    permissions = []
+    if ":" in item:
+        (user, permission) = item.split(':')
+
+    if "r" in permission:
+        permissions.append("read")
+    if "w" in permission:
+        permissions.append("write")
+    if "a" in permission:
+        permissions.append("annotate")
+    if "d" in permission:
+        permissions.append("delete")
+
+    return user, permissions
 
 
 def write_markdown_doc(namespaces: list, config):
@@ -131,20 +146,20 @@ class PermissionTarget:
         if users is None:
             self.users = {}
         else:
-            self.users = dict((x, get_write_permissions()) for x in users)
+            self.users = dict((get_item_with_permissions(x)) for x in users)
 
         if groups is None:
             self.groups = {}
         else:
-            self.groups = dict((x, get_write_permissions()) for x in groups)
+            self.groups = dict((get_item_with_permissions(x)) for x in groups)
 
         self.include_patterns = []
         self.exclude_patterns = []
 
         if namespace is not None:
             self.name = "ns-" + namespace.name
-            self.users = dict((x, get_write_permissions()) for x in namespace.users)
-            self.groups = dict((x, get_write_permissions()) for x in namespace.groups)
+            self.users = dict((get_item_with_permissions(x)) for x in namespace.users)
+            self.groups = dict((get_item_with_permissions(x)) for x in namespace.groups)
             self.include_patterns = namespace.get_all_patterns()
         elif str is not None:
             self.name = name
