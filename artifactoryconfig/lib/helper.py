@@ -207,6 +207,7 @@ class DeployConfig(Config):
     vault_files_pattern: str = ""
     vault_file_list: list = None
     vault_secret: str = ""
+    unmanaged_ignores: list = None
     dry_run: bool = False
 
     def __init__(self, initial_data=None):
@@ -214,13 +215,16 @@ class DeployConfig(Config):
         if initial_data is None:
             initial_data = {}
 
+        list_members = ["config_folder", "unmanaged_ignores"]
         for key in initial_data:
-            if key == "config_folder":
+            if key in list_members:
                 setattr(self, key, as_list(initial_data[key]))
             else:
                 setattr(self, key, initial_data[key])
 
         self._init_vault_files()
+        if not self.unmanaged_ignores:
+            self.unmanaged_ignores = []
 
     def is_valid(self) -> bool:
         return self.artifactory_url != "" and isinstance(self.config_folder, list)

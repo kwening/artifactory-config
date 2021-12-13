@@ -1,18 +1,20 @@
 import logging
+import re
+
 import requests
 
 from pyartifactory import Artifactory
 from pyartifactory.models import NewUser, User, Group, LocalRepository, RemoteRepository, PermissionV2, \
     VirtualRepository
 
-_GLOB = {}
+from .helper import DeployConfig
 
-
-def get_artifactory() -> Artifactory:
-    return _GLOB['artifactory']
+art: Artifactory
+app_config: DeployConfig
 
 
 def init_connection(url: str, username: str, token: str):
+    global art
     api_version = 2
 
     if token is not None and username is not None:
@@ -24,12 +26,11 @@ def init_connection(url: str, username: str, token: str):
 
     # Try to list repos to force an exception on invalid connect configuration
     # art.repositories.list()
-    _GLOB['artifactory'] = art
 
 
 def get_configuration() -> dict:
+    global art
     logging.info("#####   Fetching current configuration from artifactory   #####")
-    art = get_artifactory()
     current_config = {'users': art.users.list(),
                       'groups': art.groups.list(),
                       'permissions': art.permissions.list(),
@@ -43,22 +44,26 @@ def get_configuration() -> dict:
     return current_config
 
 
-def apply_configuration(config_objects: dict, dry_run: bool):
+def apply_configuration(config_objects: dict, config: DeployConfig):
+    global art
+    global app_config
     current_config = get_configuration()
-    art = get_artifactory()
+    app_config = config
 
-    if dry_run:
+    if config.dry_run:
         logging.info("Dry run enabled - no changes will be deployed")
 
-    apply_user_config(art, config_objects, current_config, dry_run)
-    apply_group_config(art, config_objects, current_config, dry_run)
-    apply_permission_config(art, config_objects, current_config, dry_run)
-    apply_local_repo_config(art, config_objects['localRepositories'], current_config['localRepos'], dry_run)
-    apply_remote_repo_config(art, config_objects['remoteRepositories'], current_config['remoteRepos'], dry_run)
-    apply_virtual_repo_config(art, config_objects['virtualRepositories'], current_config['virtualRepos'], dry_run)
+    __apply_local_repo_config(config_objects['localRepositories'], current_config['localRepos'], config.dry_run)
+    __apply_remote_repo_config(config_objects['remoteRepositories'], current_config['remoteRepos'], config.dry_run)
+    __apply_virtual_repo_config(config_objects['virtualRepositories'], current_config['virtualRepos'],
+                                config.dry_run)
+    __apply_user_config(config_objects, current_config, config.dry_run)
+    __apply_group_config(config_objects, current_config, config.dry_run)
+    __apply_permission_config(config_objects, current_config, config.dry_run)
 
 
-def apply_user_config(art, config_objects, current_config, dry_run: bool):
+def __apply_user_config(config_objects, current_config, dry_run: bool):
+    global art
     logging.info("#####   Applying user configs   #####")
 
     for key, value in config_objects['users'].items():
@@ -84,13 +89,13 @@ def apply_user_config(art, config_objects, current_config, dry_run: bool):
 
             logging.info(f"User '{key}' successfully {action}")
         except requests.exceptions.HTTPError as e:
-            log_api_error(e)
+            __log_api_error(e)
 
-    for unmanaged_user in current_config['users']:
-        logging.info(f"Unmanaged user '{unmanaged_user.name}' found")
+    __log_unmanaged_items("user", [item.name for item in current_config['users']])
 
 
-def apply_group_config(art, config_objects, current_config, dry_run: bool):
+def __apply_group_config(config_objects, current_config, dry_run: bool):
+    global art
     logging.info("#####   Applying group configs   #####")
 
     for key, value in config_objects['groups'].items():
@@ -111,13 +116,13 @@ def apply_group_config(art, config_objects, current_config, dry_run: bool):
 
             logging.info(f"Group '{key}' successfully {action}")
         except requests.exceptions.HTTPError as e:
-            log_api_error(e)
+            __log_api_error(e)
 
-    for unmanaged_group in current_config['groups']:
-        logging.info(f"Unmanaged group '{unmanaged_group.name}' found")
+    __log_unmanaged_items("group", [item.name for item in current_config['groups']])
 
 
-def apply_permission_config(art, config_objects, current_config, dry_run: bool):
+def __apply_permission_config(config_objects, current_config, dry_run: bool):
+    global art
     logging.info("#####   Applying permission configs   #####")
 
     for key, value in config_objects['permissions'].items():
@@ -137,13 +142,13 @@ def apply_permission_config(art, config_objects, current_config, dry_run: bool):
                 action = 'created'
             logging.info(f"Permission '{key}' successfully {action}")
         except requests.exceptions.HTTPError as e:
-            log_api_error(e)
+            __log_api_error(e)
 
-    for unmanaged_permission in current_config['permissions']:
-        logging.info(f"Unmanaged permission '{unmanaged_permission.name}' found")
+    __log_unmanaged_items("permission", [item.name for item in current_config['permissions']])
 
 
-def apply_local_repo_config(art, config_objects, current_config, dry_run: bool):
+def __apply_local_repo_config(config_objects, current_config, dry_run: bool):
+    global art
     logging.info("#####   Applying local repo configs   #####")
 
     for key, value in config_objects.items():
@@ -164,13 +169,13 @@ def apply_local_repo_config(art, config_objects, current_config, dry_run: bool):
                 action = 'created'
             logging.info(f"Local repo '{key}' successfully {action}")
         except requests.exceptions.HTTPError as e:
-            log_api_error(e)
+            __log_api_error(e)
 
-    for unmanaged in current_config:
-        logging.info(f"Unmanaged local repo '{unmanaged.key}' found")
+    __log_unmanaged_items("local repo", [item.key for item in current_config])
 
 
-def apply_remote_repo_config(art, config_objects, current_config, dry_run: bool):
+def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
+    global art
     logging.info("#####   Applying remote repo configs   #####")
 
     for key, value in config_objects.items():
@@ -191,13 +196,13 @@ def apply_remote_repo_config(art, config_objects, current_config, dry_run: bool)
                 action = 'created'
             logging.info(f"Remote repo '{key}' successfully {action}")
         except requests.exceptions.HTTPError as e:
-            log_api_error(e)
+            __log_api_error(e)
 
-    for unmanaged in current_config:
-        logging.info(f"Unmanaged remote repo '{unmanaged.key}' found")
+    __log_unmanaged_items("remote repo", [item.key for item in current_config])
 
 
-def apply_virtual_repo_config(art, config_objects, current_config, dry_run: bool):
+def __apply_virtual_repo_config(config_objects, current_config, dry_run: bool):
+    global art
     logging.info("#####   Applying virtual repo configs   #####")
 
     for key, value in config_objects.items():
@@ -218,19 +223,18 @@ def apply_virtual_repo_config(art, config_objects, current_config, dry_run: bool
                 action = 'created'
             logging.info(f"Virtual repo '{key}' successfully {action}")
         except requests.exceptions.HTTPError as e:
-            log_api_error(e)
+            __log_api_error(e)
 
-    for unmanaged in current_config:
-        logging.info(f"Unmanaged virtual repo '{unmanaged.key}' found")
+    __log_unmanaged_items("virtual repo", [item.key for item in current_config])
 
 
-def log_api_error(e):
+def __log_api_error(e):
     logging.error(f"Request to {e.response.url} failed with status {e.response}")
     logging.error(f"Request body: {e.request.body}")
-    logging.error(f"Rsponse: {e.response.text}")
+    logging.error(f"Response: {e.response.text}")
 
 
-def map_fields(obj, mapping):
+def __map_fields(obj, mapping):
     new_obj = {}
 
     for key in obj.keys():
@@ -241,3 +245,14 @@ def map_fields(obj, mapping):
         new_obj[new_key] = obj[key]
 
     return new_obj
+
+
+def __log_unmanaged_items(item_type: str, items: list):
+    global app_config
+
+    # Make a regex that matches if any of our regexes match.
+    ignore_regex = "(" + ")|(".join(app_config.unmanaged_ignores) + ")"
+
+    for item in items:
+        if not re.match(ignore_regex, item):
+            logging.info(f"Unmanaged {item_type} '{item}' found")

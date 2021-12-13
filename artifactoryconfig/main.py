@@ -20,9 +20,9 @@ def main(args):
 
     if config.command == 'deploy':
         logging.info("Deploying configuration to an Artifactory server")
-        config_objects = configreader.read_configuration(config)
+        local_config = configreader.read_configuration(config)
         artifactory.init_connection(config.artifactory_url, config.artifactory_user, config.artifactory_token)
-        artifactory.apply_configuration(config_objects, config.dry_run)
+        artifactory.apply_configuration(local_config, config)
     elif config.command == 'namespaces':
         logging.info("Creating permissions for namespaces")
         namespaces.read_namespaces(config)
