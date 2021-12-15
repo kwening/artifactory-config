@@ -10,6 +10,8 @@ from json import JSONDecodeError
 from jinja2 import Template
 from ansible.parsing.vault import VaultLib, VaultSecret
 
+from .helper import DeployConfig
+
 
 def read_configuration(app_config) -> dict:
 
@@ -94,7 +96,7 @@ def read_yaml_configs(config_folder: str, config, config_objects: dict, secrets:
     return config_objects
 
 
-def read_vault_files(config) -> dict:
+def read_vault_files(config: DeployConfig) -> dict:
     """
     Read ansible vault encrypted files from a comma separated list of files
     and decrypt them with given vault secret

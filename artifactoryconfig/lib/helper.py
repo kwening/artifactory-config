@@ -120,6 +120,14 @@ def parse_args(args):
         help="target directory for generated files",
     )
 
+    lint.add_argument(
+        "-f",
+        "--config-folder",
+        dest="config_folder",
+        default=os.getenv("CONFIG_FOLDER", ""),
+        help="path to folder containing configuration files",
+    )
+
     args = parser.parse_args(args)
 
     setup_logging(args.log_level)
@@ -131,7 +139,7 @@ def parse_args(args):
         config = NamespacesConfig()
         active_parser = namespaces
     elif args.command == 'lint':
-        config = LintingConfig()
+        config = DeployConfig()
         active_parser = lint
     else:
         config = Config()
@@ -191,7 +199,7 @@ class Config:
         self.__init__({k: v for k, v in args.items() if not v == ""})
 
     def is_valid(self) -> bool:
-        return True
+        return False
 
 
 @dataclass
@@ -223,6 +231,7 @@ class DeployConfig(Config):
                 setattr(self, key, initial_data[key])
 
         self._init_vault_files()
+
         if not self.unmanaged_ignores:
             self.unmanaged_ignores = []
 
@@ -282,11 +291,33 @@ class NamespacesConfig(Config):
         return self.namespaces_file != ""
 
 
-@dataclass
-class LintingConfig(Config):
-    """
-    Extends Config class with specific options for 'lint' command
-    """
+# @dataclass
+# class LintingConfig(Config):
+#     """
+#     Extends Config class with specific options for 'lint' command
+#     """
+#     config_folder: list = None
+#     vault_files: str = ""
+#     vault_files_pattern: str = ""
+#     vault_file_list: list = None
+#     vault_secret: str = ""
+#
+#     def __init__(self, initial_data=None):
+#         Config.__init__(self, initial_data)
+#
+#         if initial_data is None:
+#             initial_data = {}
+#
+#         list_members = ["config_folder"]
+#         for key in initial_data:
+#             if key in list_members:
+#                 setattr(self, key, as_list(initial_data[key]))
+#             else:
+#                 setattr(self, key, initial_data[key])
+#
+#
+#     def is_valid(self) -> bool:
+#         return True
 
 
 def as_list(value):

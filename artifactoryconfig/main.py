@@ -5,10 +5,12 @@ import lib.helper as helper
 import lib.artifactory as artifactory
 import lib.configreader as configreader
 import lib.namespaces as namespaces
+import lib.linting as linting
 
 __author__ = "Klaus Wening"
 __copyright__ = "Klaus Wening"
 __license__ = "MIT"
+
 
 _logger = logging.getLogger(__name__)
 
@@ -28,6 +30,8 @@ def main(args):
         namespaces.read_namespaces(config)
     elif config.command == 'lint':
         logging.info("Linting artifactory config")
+        local_config = configreader.read_configuration(config)
+        linting.lint_config(local_config)
         logging.warning("Not implemented yet")
 
 
