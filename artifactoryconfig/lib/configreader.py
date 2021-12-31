@@ -107,7 +107,7 @@ def read_vault_files(config) -> dict:
     logging.info("Decrypting vault encrypted files")
 
     vault_regex = re.compile(r'(^\s*(\S*):.*\n(\s*)(\$ANSIBLE_VAULT\S*\n(\s+[0-9a-f]+\n+)*))', re.MULTILINE)
-    vault = VaultLib([('default', VaultSecret(config.vault_secret.encode()))])
+    vault = VaultLib([('default', VaultSecret(str(config.vault_secret).encode()))])
     secrets = {}
 
     for file in config.vault_file_list:

@@ -154,6 +154,8 @@ def __apply_local_repo_config(config_objects, current_config, dry_run: bool):
     for key, value in config_objects.items():
         logging.info(f"Processing local repo '{key}'")
         value['key'] = key
+        value['packageType'] = value['type']
+        value['repoLayoutRef'] = value['repoLayout']
         local_repo = LocalRepository(**value)
 
         try:
@@ -181,6 +183,8 @@ def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
     for key, value in config_objects.items():
         logging.info(f"Processing remote repo '{key}'")
         value['key'] = key
+        value['packageType'] = value['type']
+        value['repoLayoutRef'] = value['repoLayout']
         remote_repo = RemoteRepository(**value)
 
         try:
@@ -208,6 +212,8 @@ def __apply_virtual_repo_config(config_objects, current_config, dry_run: bool):
     for key, value in config_objects.items():
         logging.info(f"Processing virtual repo '{key}'")
         value['key'] = key
+        value['packageType'] = value['type']
+        value['repoLayoutRef'] = value['repoLayout']
         repo = VirtualRepository(**value)
 
         try:

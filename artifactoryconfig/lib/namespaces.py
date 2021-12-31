@@ -116,14 +116,16 @@ class Namespace:
         self.additional_repos = as_list(initial_dict.get('additionalRepos'))
 
     def get_all_patterns(self) -> list:
-        patterns = self.public_patterns
+        patterns = []
+        patterns.extend(self.public_patterns)
         patterns.extend(self.internal_patterns)
         patterns.extend(self.restricted_patterns)
         patterns.sort()
         return patterns
 
     def get_all_thirdparty_patterns(self) -> list:
-        patterns = self.thirdparty_public_patterns
+        patterns = []
+        patterns.extend(self.thirdparty_public_patterns)
         patterns.extend(self.thirdparty_internal_patterns)
         patterns.extend(self.thirdparty_restricted_patterns)
         patterns.sort()
@@ -205,7 +207,10 @@ def write_permission_target(permission_target: PermissionTarget, config):
 
 
 def add_markdown_row(namespace: Namespace, markdown_entries):
-    include_patterns: list = namespace.get_all_patterns()
+    include_patterns: list = []
+    include_patterns.extend(namespace.get_all_patterns())
     include_patterns.extend(namespace.get_all_thirdparty_patterns())
+    # make pattern unique
+    include_patterns = list(set(include_patterns))
     patterns = ', '.join(e.replace('*', '\\*') for e in include_patterns)
     markdown_entries.append(f"| {namespace.name} | {patterns} |")
