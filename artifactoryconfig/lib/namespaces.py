@@ -212,5 +212,6 @@ def add_markdown_row(namespace: Namespace, markdown_entries):
     include_patterns.extend(namespace.get_all_thirdparty_patterns())
     # make pattern unique
     include_patterns = list(set(include_patterns))
+    include_patterns.sort()
     patterns = ', '.join(e.replace('*', '\\*') for e in include_patterns)
     markdown_entries.append(f"| {namespace.name} | {patterns} |")
