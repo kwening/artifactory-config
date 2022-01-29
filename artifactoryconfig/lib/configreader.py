@@ -12,7 +12,6 @@ from ansible.parsing.vault import VaultLib, VaultSecret
 
 
 def read_configuration(app_config) -> dict:
-
     secrets = read_vault_files(app_config)
 
     config_objects = {"users": {}, "groups": {}, "permissions": {},
@@ -126,7 +125,7 @@ def read_vault_files(config) -> dict:
                     plain_value = vault.decrypt(value.replace(indentation, '').strip()).decode('UTF-8')
                     value = value.replace("$", f"{indentation}$")
                     value = re.escape(value)
-                    plain_value = re.escape(plain_value)
+                    plain_value = plain_value.replace('\\', '\\\\')
                     content = re.sub(fr"{yaml_key}:.*{value}", f"{yaml_key}: {plain_value}\n", content, flags=re.DOTALL)
 
             new_secrets = yaml.safe_load(content) or {}
