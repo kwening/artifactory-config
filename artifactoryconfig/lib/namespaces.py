@@ -27,7 +27,7 @@ def read_namespaces(config):
                                                           repositories=config.thirdparty_repos,
                                                           groups=config.public_groups, users=config.public_users)
 
-    namespaces_markdown = [f"| Namespace | Patterns |", f"| :--- | :--- |"]
+    namespaces_markdown = [f"| Namespace | Patterns | Thirdparty-Patterns |", f"| :--- | :--- | :--- |"]
 
     for ns in namespace_definitions.get('namespaces'):
         namespace = Namespace(ns)
@@ -142,10 +142,10 @@ class PermissionTarget:
     groups: dict
 
     def __init__(self, namespace: Namespace = None, name: str = None, repositories=None, users=None, groups=None):
-        if repositories is None:
-            self.repositories = []
-        else:
-            self.repositories = repositories
+        self.repositories = []
+
+        if repositories is not None:
+            self.repositories = repositories.copy()
 
         if users is None:
             self.users = {}
@@ -207,11 +207,12 @@ def write_permission_target(permission_target: PermissionTarget, config):
 
 
 def add_markdown_row(namespace: Namespace, markdown_entries):
-    include_patterns: list = []
-    include_patterns.extend(namespace.get_all_patterns())
-    include_patterns.extend(namespace.get_all_thirdparty_patterns())
-    # make pattern unique
-    include_patterns = list(set(include_patterns))
+    include_patterns = list(set(namespace.get_all_patterns()))
     include_patterns.sort()
     patterns = ', '.join(e.replace('*', '\\*') for e in include_patterns)
-    markdown_entries.append(f"| {namespace.name} | {patterns} |")
+
+    include_patterns = list(set(namespace.get_all_thirdparty_patterns()))
+    include_patterns.sort()
+    thirdparty_patterns = ', '.join(e.replace('*', '\\*') for e in include_patterns)
+
+    markdown_entries.append(f"| {namespace.name} | {patterns} | {thirdparty_patterns} |")
