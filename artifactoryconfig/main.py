@@ -31,8 +31,8 @@ def main(args):
     elif config.command == 'lint':
         logging.info("Linting artifactory config")
         local_config = configreader.read_configuration(config)
-        linting.lint_config(local_config)
-        logging.warning("Not implemented yet")
+        logging.debug(local_config)
+        linting.lint_config(local_config, config)
 
 
 def run():

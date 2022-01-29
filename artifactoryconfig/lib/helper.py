@@ -127,6 +127,13 @@ def parse_args(args):
         default=os.getenv("CONFIG_FOLDER", ""),
         help="path to folder containing configuration files",
     )
+    lint.add_argument(
+        "--fail-level",
+        dest="fail_level",
+        type=int,
+        default=os.getenv("FAIL_LEVEL", 20),
+        help="fail linting when rules with at least this level fail (default: 20)",
+    )
 
     args = parser.parse_args(args)
 
@@ -139,7 +146,7 @@ def parse_args(args):
         config = NamespacesConfig()
         active_parser = namespaces
     elif args.command == 'lint':
-        config = DeployConfig()
+        config = LintingConfig()
         active_parser = lint
     else:
         config = Config()
@@ -178,6 +185,11 @@ class Config:
     command: str = ""
     config_file: str = ""
     log_level: int = ""
+    config_folder: list = None
+    vault_files: str = ""
+    vault_files_pattern: str = ""
+    vault_file_list: list = None
+    vault_secret: str = ""
 
     def __init__(self, initial_data=None):
         if initial_data is None:
@@ -201,6 +213,19 @@ class Config:
     def is_valid(self) -> bool:
         return False
 
+    def _init_vault_files(self):
+        if self.vault_file_list:
+            return
+
+        if self.vault_files:
+            self.vault_file_list = [x.strip() for x in self.vault_files.split(',')]
+        elif self.config_folder and self.vault_files_pattern:
+            for folder in self.config_folder:
+                # use glob pattern to detect vault files
+                self.vault_file_list.extend(glob(f'{folder}/{self.vault_files_pattern}', recursive=True))
+        else:
+            self.vault_file_list = []
+
 
 @dataclass
 class DeployConfig(Config):
@@ -210,11 +235,6 @@ class DeployConfig(Config):
     artifactory_url: str = ""
     artifactory_user: str = ""
     artifactory_token: str = ""
-    config_folder: list = None
-    vault_files: str = ""
-    vault_files_pattern: str = ""
-    vault_file_list: list = None
-    vault_secret: str = ""
     unmanaged_ignores: list = None
     dry_run: bool = False
 
@@ -238,18 +258,31 @@ class DeployConfig(Config):
     def is_valid(self) -> bool:
         return self.artifactory_url != "" and isinstance(self.config_folder, list)
 
-    def _init_vault_files(self):
-        if self.vault_file_list:
-            return
 
-        if self.vault_files:
-            self.vault_file_list = [x.strip() for x in self.vault_files.split(',')]
-        elif self.config_folder and self.vault_files_pattern:
-            for folder in self.config_folder:
-                # use glob pattern to detect vault files
-                self.vault_file_list.extend(glob(f'{folder}/{self.vault_files_pattern}', recursive=True))
-        else:
-            self.vault_file_list = []
+@dataclass
+class LintingConfig(Config):
+    """
+    Extends Config class with specific options for 'lint' command
+    """
+    fail_level: int = 20
+
+    def __init__(self, initial_data=None):
+        Config.__init__(self, initial_data)
+
+        if initial_data is None:
+            initial_data = {}
+
+        list_members = ["config_folder"]
+        for key in initial_data:
+            if key in list_members:
+                setattr(self, key, as_list(initial_data[key]))
+            else:
+                setattr(self, key, initial_data[key])
+
+        self._init_vault_files()
+
+    def is_valid(self) -> bool:
+        return True
 
 
 @dataclass
@@ -289,35 +322,6 @@ class NamespacesConfig(Config):
 
     def is_valid(self) -> bool:
         return self.namespaces_file != ""
-
-
-# @dataclass
-# class LintingConfig(Config):
-#     """
-#     Extends Config class with specific options for 'lint' command
-#     """
-#     config_folder: list = None
-#     vault_files: str = ""
-#     vault_files_pattern: str = ""
-#     vault_file_list: list = None
-#     vault_secret: str = ""
-#
-#     def __init__(self, initial_data=None):
-#         Config.__init__(self, initial_data)
-#
-#         if initial_data is None:
-#             initial_data = {}
-#
-#         list_members = ["config_folder"]
-#         for key in initial_data:
-#             if key in list_members:
-#                 setattr(self, key, as_list(initial_data[key]))
-#             else:
-#                 setattr(self, key, initial_data[key])
-#
-#
-#     def is_valid(self) -> bool:
-#         return True
 
 
 def as_list(value):
