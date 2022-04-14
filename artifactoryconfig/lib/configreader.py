@@ -16,11 +16,15 @@ from .helper import DeployConfig
 def read_configuration(app_config) -> dict:
     secrets = read_vault_files(app_config)
 
-    config_objects = {"users": {}, "groups": {}, "permissions": {},
-                      "localRepositories": {},
-                      "remoteRepositories": {},
-                      "virtualRepositories": {},
-                      }
+    config_objects = {
+        "users": {},
+        "groups": {},
+        "permissions": {},
+        "localRepositories": {},
+        "remoteRepositories": {},
+        "virtualRepositories": {},
+    }
+
     for folder in app_config.config_folder:
         config_objects = read_config_folder(folder, app_config, config_objects, secrets)
 

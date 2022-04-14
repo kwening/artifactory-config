@@ -12,6 +12,11 @@ from .helper import DeployConfig
 art: Artifactory
 app_config: DeployConfig
 
+# Debug requests
+# requests_log = logging.getLogger("requests.packages.urllib3")
+# requests_log.setLevel(logging.DEBUG)
+# requests_log.propagate = True
+
 
 def init_connection(url: str, username: str, token: str):
     global art
@@ -167,7 +172,7 @@ def __apply_local_repo_config(config_objects, current_config, dry_run: bool):
                     next((x for x in current_config if x.key == key), None))
             else:
                 if not dry_run:
-                    art.repositories.create_local_repo(local_repo)
+                    art.repositories.create_repo(local_repo)
                 action = 'created'
             logging.info(f"Local repo '{key}' successfully {action}")
         except requests.exceptions.HTTPError as e:
@@ -185,6 +190,7 @@ def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
         value['key'] = key
         value['packageType'] = value['type']
         value['repoLayoutRef'] = value['repoLayout']
+        value['bypassHeadRequest'] = value['bypassHeadRequests']
         remote_repo = RemoteRepository(**value)
 
         try:
@@ -196,7 +202,7 @@ def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
                     next((x for x in current_config if x.key == key), None))
             else:
                 if not dry_run:
-                    art.repositories.create_remote_repo(remote_repo)
+                    art.repositories.create_repo(remote_repo)
                 action = 'created'
             logging.info(f"Remote repo '{key}' successfully {action}")
         except requests.exceptions.HTTPError as e:
@@ -225,7 +231,7 @@ def __apply_virtual_repo_config(config_objects, current_config, dry_run: bool):
                     next((x for x in current_config if x.key == key), None))
             else:
                 if not dry_run:
-                    art.repositories.create_virtual_repo(repo)
+                    art.repositories.create_repo(repo)
                 action = 'created'
             logging.info(f"Virtual repo '{key}' successfully {action}")
         except requests.exceptions.HTTPError as e:
