@@ -1,20 +1,49 @@
 import json
 import logging
 from dataclasses import dataclass
+from json import JSONDecodeError
 
 import yaml
 import os
 
+from jinja2 import Template
+
 from .helper import as_list
 
 
-def read_namespaces(config):
+def write_group(group: str, config):
+    logging.info(f"Creating group '{group}'")
+    groups_output_dir = config.output_dir + "groups/"
+    file_name = groups_output_dir + group + '.json'
+    group_obj = {'name': group}
+
+    if not os.path.exists(config.group_template):
+        logging.warning(f"Group template file '{config.group_template}' doesn't exist - skipping")
+        return
+
+    if not os.path.isdir(groups_output_dir):
+        os.makedirs(groups_output_dir)
+
+    with open(file_name, 'w+') as group_file:
+        with open(config.group_template) as group_template_file:
+            content = group_template_file.read()
+            template = Template(content)
+            try:
+                data = json.loads(template.render(group_obj))
+                json.dump(data, group_file, indent=4, sort_keys=True)
+            except JSONDecodeError as e:
+                logging.warning(f"Failed to read '{config.group_template}': {e.msg}")
+
+    logging.info(f"Writing group '{group}' to '{file_name}'")
+
+
+def process_namespaces(config, local_config):
     logging.info(f"Reading namespace definitions from '{config.namespaces_file}'")
     with open(config.namespaces_file) as yaml_file:
         namespace_definitions = yaml.safe_load(yaml_file) or {}
 
-    if not os.path.exists(config.output_dir):
-        os.makedirs(config.output_dir)
+    if not os.path.exists(config.output_dir + 'permissions/'):
+        os.makedirs(config.output_dir + 'permissions/')
 
     global_internal = PermissionTarget(name="global-internal", repositories=config.internal_repos,
                                        groups=config.internal_groups, users=config.internal_users)
@@ -43,6 +72,12 @@ def read_namespaces(config):
 
         # Create markdown entries
         add_markdown_row(namespace, namespaces_markdown)
+
+        # Check for missing groups and create them
+        for group in namespace.groups:
+            logging.info(f"Group in namespace found: {group}")
+            if not local_config.get('groups').get(group):
+                write_group(group, config)
 
     # Write public permission
     write_permission_target(global_public, config)
@@ -80,7 +115,7 @@ def get_item_with_permissions(item: str):
 
 
 def write_markdown_doc(namespaces: list, config):
-    file_name = config.output_dir + 'namespaces.md'
+    file_name = config.output_dir + 'permissions/' + 'namespaces.md'
     with open(file_name, 'w+') as markdown_file:
         for entry in namespaces:
             markdown_file.write(f"{entry}\n")
@@ -195,11 +230,11 @@ def write_permission_target(permission_target: PermissionTarget, config):
         return
 
     if config.output_format == "yaml":
-        file_name = config.output_dir + permission_target.name + '.yaml'
+        file_name = config.output_dir + 'permissions/' + permission_target.name + '.yaml'
         with open(file_name, 'w+') as permission_file:
             yaml.dump(permission_target.as_dict(), permission_file, default_flow_style=False)
     else:
-        file_name = config.output_dir + permission_target.name + '.json'
+        file_name = config.output_dir + 'permissions/' + permission_target.name + '.json'
         with open(file_name, 'w+') as permission_file:
             json.dump(permission_target.as_dict(), permission_file, indent=4, sort_keys=True)
 

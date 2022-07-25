@@ -22,15 +22,16 @@ def main(args):
 
     if config.command == 'deploy':
         logging.info("Deploying configuration to an Artifactory server")
-        local_config = configreader.read_configuration(config)
+        local_config: dict = configreader.read_configuration(config)
         artifactory.init_connection(config.artifactory_url, config.artifactory_user, config.artifactory_token)
         artifactory.apply_configuration(local_config, config)
     elif config.command == 'namespaces':
-        logging.info("Creating permissions for namespaces")
-        namespaces.read_namespaces(config)
+        logging.info("Creating namespace configurations")
+        local_config: dict = configreader.read_configuration(config)
+        namespaces.process_namespaces(config, local_config)
     elif config.command == 'lint':
         logging.info("Linting artifactory config")
-        local_config = configreader.read_configuration(config)
+        local_config: dict = configreader.read_configuration(config)
         logging.debug(local_config)
         linting.lint_config(local_config, config)
 

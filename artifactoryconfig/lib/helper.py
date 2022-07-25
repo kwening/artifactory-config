@@ -162,6 +162,8 @@ def parse_args(args):
     if not config.is_valid():
         sys.exit(active_parser.print_usage())
 
+    logging.debug(f"Active config: {config}")
+
     return config
 
 
@@ -195,8 +197,20 @@ class Config:
         if initial_data is None:
             initial_data = {}
 
+        if self.vault_file_list is None:
+            self.vault_file_list = []
+
+        if self.config_folder is None:
+            self.config_folder = []
+
+        list_members = ["config_folder", "unmanaged_ignores", "vault_file_list"]
         for key in initial_data:
-            setattr(self, key, initial_data[key])
+            if key in list_members:
+                setattr(self, key, as_list(initial_data[key]))
+            else:
+                setattr(self, key, initial_data[key])
+
+        self._init_vault_files()
 
     def from_yaml(self, config_file: str):
         if not os.path.isfile(config_file):
@@ -240,17 +254,6 @@ class DeployConfig(Config):
 
     def __init__(self, initial_data=None):
         Config.__init__(self, initial_data)
-        if initial_data is None:
-            initial_data = {}
-
-        list_members = ["config_folder", "unmanaged_ignores"]
-        for key in initial_data:
-            if key in list_members:
-                setattr(self, key, as_list(initial_data[key]))
-            else:
-                setattr(self, key, initial_data[key])
-
-        self._init_vault_files()
 
         if not self.unmanaged_ignores:
             self.unmanaged_ignores = []
@@ -268,16 +271,6 @@ class LintingConfig(Config):
 
     def __init__(self, initial_data=None):
         Config.__init__(self, initial_data)
-
-        if initial_data is None:
-            initial_data = {}
-
-        list_members = ["config_folder"]
-        for key in initial_data:
-            if key in list_members:
-                setattr(self, key, as_list(initial_data[key]))
-            else:
-                setattr(self, key, initial_data[key])
 
         self._init_vault_files()
 
@@ -302,6 +295,10 @@ class NamespacesConfig(Config):
 
     def __init__(self, initial_data=None):
         Config.__init__(self, initial_data)
+
+        if initial_data is None:
+            initial_data = {}
+
         if initial_data is None:
             initial_data = {}
 
@@ -309,13 +306,13 @@ class NamespacesConfig(Config):
             if key == "repos":
                 self.internal_repos = as_list(initial_data[key].get('internal', None))
                 self.thirdparty_repos = as_list(initial_data[key].get('thirdparty', None))
-            if key == "users":
+            elif key == "users":
                 self.public_users = as_list(initial_data[key].get('public', None))
                 self.internal_users = as_list(initial_data[key].get('internal', None))
-            if key == "groups":
+            elif key == "groups":
                 self.public_groups = as_list(initial_data[key].get('public', None))
                 self.internal_groups = as_list(initial_data[key].get('internal', None))
-            else:
+            elif key not in Config.__dict__:
                 setattr(self, key, initial_data[key])
 
         self.output_dir = self.output_dir + '/' if not self.output_dir.endswith('/') else self.output_dir
