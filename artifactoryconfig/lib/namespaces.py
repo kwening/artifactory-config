@@ -17,10 +17,6 @@ def write_group(group: str, config):
     file_name = groups_output_dir + group + '.json'
     group_obj = {'name': group}
 
-    if not os.path.exists(config.group_template):
-        logging.warning(f"Group template file '{config.group_template}' doesn't exist - skipping")
-        return
-
     if not os.path.isdir(groups_output_dir):
         os.makedirs(groups_output_dir)
 
@@ -73,11 +69,15 @@ def process_namespaces(config, local_config):
         # Create markdown entries
         add_markdown_row(namespace, namespaces_markdown)
 
-        # Check for missing groups and create them
-        for group in namespace.groups:
-            logging.info(f"Group in namespace found: {group}")
-            if not local_config.get('groups').get(group):
-                write_group(group, config)
+        if os.path.exists(config.group_template):
+            # Check for missing groups and create them
+            for group in namespace.groups:
+                logging.info(f"Group in namespace found: {group}")
+                if not local_config.get('groups').get(group):
+                    write_group(group, config)
+        else:
+            logging.warning(
+                f"Group template file '{config.group_template}' doesn't exist - skipping group auto creation")
 
     # Write public permission
     write_permission_target(global_public, config)
@@ -207,11 +207,27 @@ class PermissionTarget:
             self.name = name
 
     def as_dict(self) -> dict:
-        return {'name': self.name,
-                'repo': {'include-patterns': self.include_patterns,
-                         'exclude-patterns': self.exclude_patterns,
-                         'repositories': self.repositories,
-                         'actions': {'users': self.users, 'groups': self.groups}}}
+        add_build_info = False
+
+        if 'artifactory-build-info' in self.repositories:
+            self.repositories.remove('artifactory-build-info')
+            add_build_info = True
+
+        permission_target = {
+            'name': self.name,
+            'repo': {'include-patterns': self.include_patterns,
+                     'exclude-patterns': self.exclude_patterns,
+                     'repositories': self.repositories,
+                     'actions': {'users': self.users, 'groups': self.groups}}
+        }
+
+        if add_build_info:
+            permission_target['build'] = {'include-patterns': self.include_patterns,
+                                          'exclude-patterns': self.exclude_patterns,
+                                          'repositories': ['artifactory-build-info'],
+                                          'actions': {'users': self.users, 'groups': self.groups}}
+
+        return permission_target
 
 
 @dataclass
