@@ -52,7 +52,8 @@ def process_namespaces(config, local_config):
                                                           repositories=config.thirdparty_repos,
                                                           groups=config.public_groups, users=config.public_users)
 
-    namespaces_markdown = [f"| Namespace | Patterns | Thirdparty-Patterns |", f"| :--- | :--- | :--- |"]
+    namespaces_markdown = [f"| Namespace | Patterns | Thirdparty-Patterns | Zugriffsberechtigung",
+                           f"| :--- | :--- | :--- | :--- |"]
 
     for ns in namespace_definitions.get('namespaces'):
         namespace = Namespace(ns)
@@ -266,4 +267,11 @@ def add_markdown_row(namespace: Namespace, markdown_entries):
     include_patterns.sort()
     thirdparty_patterns = ', '.join(e.replace('*', '\\*') for e in include_patterns)
 
-    markdown_entries.append(f"| {namespace.name} | {patterns} | {thirdparty_patterns} |")
+    permissions = []
+
+    if namespace.groups:
+        permissions.append('Gruppen: ' + ', '.join(namespace.groups))
+    if namespace.users:
+        permissions.append('User: ' + ', '.join(namespace.users))
+
+    markdown_entries.append(f"| {namespace.name} | {patterns} | {thirdparty_patterns} | {', '.join(permissions)} |")
