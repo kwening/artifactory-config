@@ -292,6 +292,8 @@ class NamespacesConfig(Config):
     public_groups: list = None
     output_dir: str = "out"
     output_format: str = "json"
+    groups_output_dir: str = ""
+    group_template: str = ""
 
     def __init__(self, initial_data=None):
         Config.__init__(self, initial_data)

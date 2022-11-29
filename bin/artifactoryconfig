@@ -1,4 +1,4 @@
 #!/bin/sh
 
 BINPATH=`dirname $0`
-python "$BINPATH/../artifactoryconfig/main.py" $@
+python3 "$BINPATH/../artifactoryconfig/main.py" $@
