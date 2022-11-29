@@ -13,8 +13,17 @@ from .helper import as_list
 
 def write_group(group: str, config):
     logging.info(f"Creating group '{group}'")
-    groups_output_dir = config.output_dir + "groups/"
+
+    if config.groups_output_dir:
+        groups_output_dir = config.groups_output_dir
+    else:
+        groups_output_dir = config.output_dir + "groups/"
+
     file_name = groups_output_dir + group + '.json'
+    if os.path.exists(file_name):
+        logging.debug(f"Group config file for '${group}' already exists")
+        return
+
     group_obj = {'name': group}
 
     if not os.path.isdir(groups_output_dir):
@@ -73,9 +82,10 @@ def process_namespaces(config, local_config):
         if os.path.exists(config.group_template):
             # Check for missing groups and create them
             for group in namespace.groups:
-                logging.info(f"Group in namespace found: {group}")
-                if not local_config.get('groups').get(group):
-                    write_group(group, config)
+                group_name, *b = group.split(":")
+                logging.info(f"Group in namespace found: {group_name}")
+                if not local_config.get('groups').get(group_name):
+                    write_group(group_name, config)
         else:
             logging.warning(
                 f"Group template file '{config.group_template}' doesn't exist - skipping group auto creation")
