@@ -1,0 +1,4 @@
+[LOGGING]
+logging-format-style=new
+disable=logging-fstring-interpolation
+enable=logging-format-interpolation
