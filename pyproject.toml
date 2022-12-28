@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Automation scripts for JFrog Artifactory configuration"
 authors = ["Klaus Wening <klaus.wening@datev.de>"]
 readme = "README.md"
+license = "MIT"
 packages = [{include = "artifactoryconfig"}]
 
 [tool.poetry.dependencies]
