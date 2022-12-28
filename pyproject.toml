@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "artifactory-config"
+version = "0.1.0"
+description = "Automation scripts for JFrog Artifactory configuration"
+authors = ["Klaus Wening <klaus.wening@datev.de>"]
+readme = "README.md"
+packages = [{include = "artifactoryconfig"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+PyYAML = "^6.0"
+pyartifactory = "^1.11.0"
+Jinja2 = "^3.1.2"
+ansible-core = "^2.14.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.0"
+pylint = "^2.15.9"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
