@@ -1,16 +1,19 @@
+"""
+Integration with Artifactory server
+Send api requests, process results,...
+"""
 import logging
 import re
-
 import requests
 
 from pyartifactory import Artifactory
-from pyartifactory.models import NewUser, User, Group, LocalRepository, RemoteRepository, PermissionV2, \
-    VirtualRepository
+from pyartifactory.models import NewUser, User, Group, LocalRepository, RemoteRepository, \
+    PermissionV2, VirtualRepository
 
 from .helper import DeployConfig
 
-art: Artifactory
-app_config: DeployConfig
+ARTIFACTORY: Artifactory
+APP_CONFIG: DeployConfig
 
 # Debug requests
 # requests_log = logging.getLogger("requests.packages.urllib3")
@@ -19,29 +22,39 @@ app_config: DeployConfig
 
 
 def init_connection(url: str, username: str, token: str):
-    global art
+    """
+    Init the connection to the Artifactory server
+    :param url: url to the artifactory server
+    :param username: (admin) username used for requests
+    :param token: user token used for requests
+    :return: None
+    """
+    global ARTIFACTORY
     api_version = 2
 
     if token is not None and username is not None:
         logging.info(f"Initialising connection to '{url}' with user '{username}' and token auth")
-        art = Artifactory(url=url, auth=(username, token), api_version=api_version)
+        ARTIFACTORY = Artifactory(url=url, auth=(username, token), api_version=api_version)
     else:
         logging.info(f"Initialising connection to '{url}' without auth")
-        art = Artifactory(url=url, api_version=api_version)
+        ARTIFACTORY = Artifactory(url=url, auth=None, api_version=api_version)
 
     # Try to list repos to force an exception on invalid connect configuration
     # art.repositories.list()
 
 
-def get_configuration() -> dict:
-    global art
+def _get_configuration() -> dict:
+    global ARTIFACTORY
     logging.info("#####   Fetching current configuration from artifactory   #####")
-    current_config = {'users': art.users.list(),
-                      'groups': art.groups.list(),
-                      'permissions': art.permissions.list(),
-                      'localRepos': [repo for repo in art.repositories.list() if repo.type == 'LOCAL'],
-                      'remoteRepos': [repo for repo in art.repositories.list() if repo.type == 'REMOTE'],
-                      'virtualRepos': [repo for repo in art.repositories.list() if repo.type == 'VIRTUAL']
+    current_config = {'users': ARTIFACTORY.users.list(),
+                      'groups': ARTIFACTORY.groups.list(),
+                      'permissions': ARTIFACTORY.permissions.list(),
+                      'localRepos': [repo for repo in ARTIFACTORY.repositories.list()
+                                     if repo.type == 'LOCAL'],
+                      'remoteRepos': [repo for repo in ARTIFACTORY.repositories.list()
+                                      if repo.type == 'REMOTE'],
+                      'virtualRepos': [repo for repo in ARTIFACTORY.repositories.list()
+                                       if repo.type == 'VIRTUAL']
                       }
 
     logging.debug(f"Current configuration {current_config}")
@@ -50,25 +63,33 @@ def get_configuration() -> dict:
 
 
 def apply_configuration(config_objects: dict, config: DeployConfig):
-    global art
-    global app_config
-    current_config = get_configuration()
-    app_config = config
+    """
+    Apply the given configuration to the Artifactory server
+    :param config_objects: configurations created from local files
+    :param config: configuration based on cli parameters
+    :return: None
+    """
+    global ARTIFACTORY
+    global APP_CONFIG
+    current_config = _get_configuration()
+    APP_CONFIG = config
 
     if config.dry_run:
         logging.info("Dry run enabled - no changes will be deployed")
 
-    __apply_local_repo_config(config_objects['localRepositories'], current_config['localRepos'], config.dry_run)
-    __apply_remote_repo_config(config_objects['remoteRepositories'], current_config['remoteRepos'], config.dry_run)
-    __apply_virtual_repo_config(config_objects['virtualRepositories'], current_config['virtualRepos'],
-                                config.dry_run)
+    __apply_local_repo_config(config_objects['localRepositories'], current_config['localRepos'],
+                              config.dry_run)
+    __apply_remote_repo_config(config_objects['remoteRepositories'], current_config['remoteRepos'],
+                               config.dry_run)
+    __apply_virtual_repo_config(config_objects['virtualRepositories'],
+                                current_config['virtualRepos'], config.dry_run)
     __apply_user_config(config_objects, current_config, config.dry_run)
     __apply_group_config(config_objects, current_config, config.dry_run)
     __apply_permission_config(config_objects, current_config, config.dry_run)
 
 
 def __apply_user_config(config_objects, current_config, dry_run: bool):
-    global art
+    global ARTIFACTORY
     logging.info("#####   Applying user configs   #####")
 
     for key, value in config_objects['users'].items():
@@ -80,27 +101,28 @@ def __apply_user_config(config_objects, current_config, dry_run: bool):
                 user = User(**value)
 
                 if not dry_run:
-                    art.users.update(user)
+                    ARTIFACTORY.users.update(user)
                 action = 'updated'
-                current_config['users'].remove(next((x for x in current_config['users'] if x.name == key), None))
+                current_config['users'].remove(next((x for x in current_config['users']
+                                                     if x.name == key), None))
             else:
                 # TODO password via template or generated
                 if 'password' not in value:
                     value['password'] = 'dfiököjwie394rkK'
                 user = NewUser(**value)
                 if not dry_run:
-                    art.users.create(user)
+                    ARTIFACTORY.users.create(user)
                 action = 'created'
 
             logging.info(f"User '{key}' successfully {action}")
-        except requests.exceptions.HTTPError as e:
-            __log_api_error(e)
+        except requests.exceptions.HTTPError as error:
+            __log_api_error(error)
 
     __log_unmanaged_items("user", [item.name for item in current_config['users']])
 
 
 def __apply_group_config(config_objects, current_config, dry_run: bool):
-    global art
+    global ARTIFACTORY
     logging.info("#####   Applying group configs   #####")
 
     for key, value in config_objects['groups'].items():
@@ -110,24 +132,25 @@ def __apply_group_config(config_objects, current_config, dry_run: bool):
         try:
             if any(x.name == key for x in current_config['groups']):
                 if not dry_run:
-                    art.groups.update(group)
+                    ARTIFACTORY.groups.update(group)
                 action = 'updated'
-                current_config['groups'].remove(next((x for x in current_config['groups'] if x.name == key), None))
+                current_config['groups'].remove(next((x for x in current_config['groups']
+                                                      if x.name == key), None))
             else:
                 if not dry_run:
-                    art.groups.create(group)
-                    art.groups.update(group)
+                    ARTIFACTORY.groups.create(group)
+                    ARTIFACTORY.groups.update(group)
                 action = 'created'
 
             logging.info(f"Group '{key}' successfully {action}")
-        except requests.exceptions.HTTPError as e:
-            __log_api_error(e)
+        except requests.exceptions.HTTPError as error:
+            __log_api_error(error)
 
     __log_unmanaged_items("group", [item.name for item in current_config['groups']])
 
 
 def __apply_permission_config(config_objects, current_config, dry_run: bool):
-    global art
+    global ARTIFACTORY
     logging.info("#####   Applying permission configs   #####")
 
     for key, value in config_objects['permissions'].items():
@@ -137,23 +160,23 @@ def __apply_permission_config(config_objects, current_config, dry_run: bool):
         try:
             if any(x.name == key for x in current_config['permissions']):
                 if not dry_run:
-                    art.permissions.update(permission)
+                    ARTIFACTORY.permissions.update(permission)
                 action = 'updated'
                 current_config['permissions'].remove(
                     next((x for x in current_config['permissions'] if x.name == key), None))
             else:
                 if not dry_run:
-                    art.permissions.create(permission)
+                    ARTIFACTORY.permissions.create(permission)
                 action = 'created'
             logging.info(f"Permission '{key}' successfully {action}")
-        except requests.exceptions.HTTPError as e:
-            __log_api_error(e)
+        except requests.exceptions.HTTPError as error:
+            __log_api_error(error)
 
     __log_unmanaged_items("permission", [item.name for item in current_config['permissions']])
 
 
 def __apply_local_repo_config(config_objects, current_config, dry_run: bool):
-    global art
+    global ARTIFACTORY
     logging.info("#####   Applying local repo configs   #####")
 
     for key, value in config_objects.items():
@@ -166,23 +189,23 @@ def __apply_local_repo_config(config_objects, current_config, dry_run: bool):
         try:
             if any(x.key == key for x in current_config):
                 if not dry_run:
-                    art.repositories.update_repo(local_repo)
+                    ARTIFACTORY.repositories.update_repo(local_repo)
                 action = 'updated'
                 current_config.remove(
                     next((x for x in current_config if x.key == key), None))
             else:
                 if not dry_run:
-                    art.repositories.create_repo(local_repo)
+                    ARTIFACTORY.repositories.create_repo(local_repo)
                 action = 'created'
             logging.info(f"Local repo '{key}' successfully {action}")
-        except requests.exceptions.HTTPError as e:
-            __log_api_error(e)
+        except requests.exceptions.HTTPError as error:
+            __log_api_error(error)
 
     __log_unmanaged_items("local repo", [item.key for item in current_config])
 
 
 def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
-    global art
+    global ARTIFACTORY
     logging.info("#####   Applying remote repo configs   #####")
 
     for key, value in config_objects.items():
@@ -196,23 +219,23 @@ def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
         try:
             if any(x.key == key for x in current_config):
                 if not dry_run:
-                    art.repositories.update_repo(remote_repo)
+                    ARTIFACTORY.repositories.update_repo(remote_repo)
                 action = 'updated'
                 current_config.remove(
                     next((x for x in current_config if x.key == key), None))
             else:
                 if not dry_run:
-                    art.repositories.create_repo(remote_repo)
+                    ARTIFACTORY.repositories.create_repo(remote_repo)
                 action = 'created'
             logging.info(f"Remote repo '{key}' successfully {action}")
-        except requests.exceptions.HTTPError as e:
-            __log_api_error(e)
+        except requests.exceptions.HTTPError as error:
+            __log_api_error(error)
 
     __log_unmanaged_items("remote repo", [item.key for item in current_config])
 
 
 def __apply_virtual_repo_config(config_objects, current_config, dry_run: bool):
-    global art
+    global ARTIFACTORY
     logging.info("#####   Applying virtual repo configs   #####")
 
     for key, value in config_objects.items():
@@ -225,25 +248,25 @@ def __apply_virtual_repo_config(config_objects, current_config, dry_run: bool):
         try:
             if any(x.key == key for x in current_config):
                 if not dry_run:
-                    art.repositories.update_repo(repo)
+                    ARTIFACTORY.repositories.update_repo(repo)
                 action = 'updated'
                 current_config.remove(
                     next((x for x in current_config if x.key == key), None))
             else:
                 if not dry_run:
-                    art.repositories.create_repo(repo)
+                    ARTIFACTORY.repositories.create_repo(repo)
                 action = 'created'
             logging.info(f"Virtual repo '{key}' successfully {action}")
-        except requests.exceptions.HTTPError as e:
-            __log_api_error(e)
+        except requests.exceptions.HTTPError as error:
+            __log_api_error(error)
 
     __log_unmanaged_items("virtual repo", [item.key for item in current_config])
 
 
-def __log_api_error(e):
-    logging.error(f"Request to {e.response.url} failed with status {e.response}")
-    logging.error(f"Request body: {e.request.body}")
-    logging.error(f"Response: {e.response.text}")
+def __log_api_error(error):
+    logging.error(f"Request to {error.response.url} failed with status {error.response}")
+    logging.error(f"Request body: {error.request.body}")
+    logging.error(f"Response: {error.response.text}")
 
 
 def __map_fields(obj, mapping):
@@ -260,10 +283,10 @@ def __map_fields(obj, mapping):
 
 
 def __log_unmanaged_items(item_type: str, items: list):
-    global app_config
+    global APP_CONFIG
 
     # Make a regex that matches if any of our regexes match.
-    ignore_regex = "(" + ")|(".join(app_config.unmanaged_ignores) + ")"
+    ignore_regex = "(" + ")|(".join(APP_CONFIG.unmanaged_ignores) + ")"
 
     for item in items:
         if not re.match(ignore_regex, item):

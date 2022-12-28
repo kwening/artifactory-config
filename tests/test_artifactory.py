@@ -5,8 +5,8 @@ import artifactoryconfig.lib.helper as helper
 
 
 def test_log_unmanaged_items(caplog):
-    artifactory.app_config = helper.DeployConfig()
-    artifactory.app_config.unmanaged_ignores = ["abcd", "exclude.*"]
+    artifactory.APP_CONFIG = helper.DeployConfig()
+    artifactory.APP_CONFIG.unmanaged_ignores = ["abcd", "exclude.*"]
     caplog.set_level(logging.INFO)
     items = ["test", "abcd", "valid", "exclude1", "exclude2"]
 

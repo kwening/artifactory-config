@@ -1,3 +1,6 @@
+"""
+Helper functions for artifactory config tool
+"""
 import argparse
 import logging
 import os
@@ -131,7 +134,7 @@ def parse_args(args):
         "--fail-level",
         dest="fail_level",
         type=int,
-        default=os.getenv("FAIL_LEVEL", 20),
+        default=os.getenv("FAIL_LEVEL", "20"),
         help="fail linting when rules with at least this level fail (default: 20)",
     )
 
@@ -215,9 +218,9 @@ class Config:
     def from_yaml(self, config_file: str):
         if not os.path.isfile(config_file):
             print(f"Config file '{config_file}' doesn't exist")
-            exit(0)
+            sys.exit(0)
 
-        with open(config_file) as yaml_file:
+        with open(config_file, encoding='utf-8') as yaml_file:
             yaml_config = yaml.safe_load(yaml_file)
             self.__init__(yaml_config)
 
@@ -236,7 +239,8 @@ class Config:
         elif self.config_folder and self.vault_files_pattern:
             for folder in self.config_folder:
                 # use glob pattern to detect vault files
-                self.vault_file_list.extend(glob(f'{folder}/{self.vault_files_pattern}', recursive=True))
+                self.vault_file_list.extend(glob(f'{folder}/{self.vault_files_pattern}',
+                                                 recursive=True))
         else:
             self.vault_file_list = []
 
@@ -317,7 +321,9 @@ class NamespacesConfig(Config):
             elif key not in Config.__dict__:
                 setattr(self, key, initial_data[key])
 
-        self.output_dir = self.output_dir + '/' if not self.output_dir.endswith('/') else self.output_dir
+        self.output_dir = self.output_dir + '/' \
+            if not self.output_dir.endswith('/') \
+            else self.output_dir
 
     def is_valid(self) -> bool:
         return self.namespaces_file != ""
@@ -330,3 +336,5 @@ def as_list(value):
         return value
     elif isinstance(value, str):
         return [x.strip() for x in value.split(',')]
+
+    return []

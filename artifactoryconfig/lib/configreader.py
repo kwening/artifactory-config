@@ -1,12 +1,18 @@
+"""
+Reads config files (yaml or json) from local directories
+Files encrypted by Ansible vault can be decrypted and Jinja2 templating is supported within the
+given config files
+"""
+import sys
 import json
 import logging
 import os
 import re
 from pprint import pformat
 
-import yaml
 from glob import glob
 from json import JSONDecodeError
+import yaml
 from jinja2 import Template
 from ansible.parsing.vault import VaultLib, VaultSecret
 
@@ -14,6 +20,11 @@ from .helper import DeployConfig
 
 
 def read_configuration(app_config) -> dict:
+    """
+    Read the config files defined within app config
+    :param app_config: config object specifying directories, vault files,...
+    :return: the generated config objects
+    """
     secrets = read_vault_files(app_config)
 
     config_objects = {
@@ -26,16 +37,16 @@ def read_configuration(app_config) -> dict:
     }
 
     for folder in app_config.config_folder:
-        config_objects = read_config_folder(folder, app_config, config_objects, secrets)
+        config_objects = _read_config_folder(folder, app_config, config_objects, secrets)
 
     logging.debug(f"Final configuration\n{pformat(config_objects)}")
     return config_objects
 
 
-def read_config_folder(config_folder: str, app_config, config_objects, secrets) -> dict:
+def _read_config_folder(config_folder: str, app_config, config_objects, secrets) -> dict:
     if not os.path.isdir(config_folder):
         logging.error(f"Config folder '{config_folder}' doesn't exist")
-        exit(0)
+        sys.exit(0)
 
     config_objects = read_json_configs(config_folder, config_objects, secrets)
     config_objects = read_yaml_configs(config_folder, app_config, config_objects, secrets)
@@ -43,8 +54,8 @@ def read_config_folder(config_folder: str, app_config, config_objects, secrets) 
 
 
 def read_json_configs(config_folder: str, config_objects: dict, secrets: dict) -> dict:
-    """Read all json based (old) configuration files from folders users, groups and permissions and return
-    dict of all found config objects
+    """Read all json based (old) configuration files from folders users, groups and permissions
+    and return dict of all found config objects
     For json each config file may contain only one object
     :param config_folder: string pointing to folder with configuration files
     :param config_objects: a dict with pre-initialized config objects
@@ -57,15 +68,15 @@ def read_json_configs(config_folder: str, config_objects: dict, secrets: dict) -
         logging.info(f"Processing json config '{config_type}' in folder '{config_folder}'")
         for f_name in glob(f"{config_folder}/**/{config_type}/*.json", recursive=True):
             logging.info(f"Reading config file '{f_name}'")
-            with open(f_name) as json_file:
+            with open(f_name, encoding='utf-8') as json_file:
                 content = json_file.read()
                 template = Template(content)
                 try:
                     data = json.loads(template.render(secrets))
                     name = data.get("name")
                     config_objects[config_type][name] = data
-                except JSONDecodeError as e:
-                    logging.warning(f"Failed to read '{f_name}': {e.msg}")
+                except JSONDecodeError as error:
+                    logging.warning(f"Failed to read '{f_name}': {error.msg}")
 
     return config_objects
 
@@ -81,13 +92,14 @@ def read_yaml_configs(config_folder: str, config, config_objects: dict, secrets:
     :return: the merged dict with all config object
     """
     logging.info(f"Processing yaml configs in folder '{config_folder}'")
-    for f_name in glob(f'{config_folder}/**/*.yaml', recursive=True) + glob(f'{config_folder}/*.yaml'):
+    for f_name in glob(f'{config_folder}/**/*.yaml', recursive=True) + \
+                  glob(f'{config_folder}/*.yaml'):
         # Skip config file and vault files
         if f_name == config.config_file or f_name in config.vault_file_list:
             continue
 
         logging.info(f"Reading config file '{f_name}'")
-        with open(f_name) as yaml_file:
+        with open(f_name, encoding='utf-8') as yaml_file:
             content = yaml_file.read()
             template = Template(content)
             yaml_config = yaml.safe_load(template.render(secrets)) or {}
@@ -111,14 +123,15 @@ def read_vault_files(config: DeployConfig) -> dict:
 
     logging.info("Decrypting vault encrypted files")
 
-    vault_regex = re.compile(r'(^\s*(\S*):.*\n(\s*)(\$ANSIBLE_VAULT\S*\n(\s+[0-9a-f]+\n+)*))', re.MULTILINE)
+    vault_regex = re.compile(r'(^\s*(\S*):.*\n(\s*)(\$ANSIBLE_VAULT\S*\n(\s+[0-9a-f]+\n+)*))',
+                             re.MULTILINE)
     vault = VaultLib([('default', VaultSecret(str(config.vault_secret).encode()))])
     secrets = {}
 
     for file in config.vault_file_list:
         logging.info(f"Decrypting secrets from '{file}'")
-        with open(file, 'r') as f:
-            content = f.read()
+        with open(file, 'r', encoding='utf-8') as vault_file:
+            content = vault_file.read()
             # append newline to content so our vault_regex matches on files missing newlines at end
             content = content + "\n"
             for match in vault_regex.findall(content):
@@ -128,11 +141,13 @@ def read_vault_files(config: DeployConfig) -> dict:
                 logging.debug(f"Decrypting key '{yaml_key}', value: {value}")
 
                 if vault.is_encrypted(value):
-                    plain_value = vault.decrypt(value.replace(indentation, '').strip()).decode('UTF-8')
+                    plain_value = vault.decrypt(value.replace(indentation, '').strip())\
+                        .decode('UTF-8')
                     value = value.replace("$", f"{indentation}$")
                     value = re.escape(value)
                     plain_value = plain_value.replace('\\', '\\\\')
-                    content = re.sub(fr"{yaml_key}:.*{value}", f"{yaml_key}: {plain_value}\n", content, flags=re.DOTALL)
+                    content = re.sub(fr"{yaml_key}:.*{value}", f"{yaml_key}: {plain_value}\n",
+                                     content, flags=re.DOTALL)
 
             new_secrets = yaml.safe_load(content) or {}
             secrets = {**secrets, **new_secrets}
