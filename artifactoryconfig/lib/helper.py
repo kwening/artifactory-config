@@ -216,6 +216,11 @@ class Config:
         self._init_vault_files()
 
     def from_yaml(self, config_file: str):
+        """
+        Init config class from yaml config file
+        :param config_file: path to the config file
+        :return: None
+        """
         if not os.path.isfile(config_file):
             print(f"Config file '{config_file}' doesn't exist")
             sys.exit(0)
@@ -225,9 +230,18 @@ class Config:
             self.__init__(yaml_config)
 
     def from_args(self, args: dict):
+        """
+        Init config class from dict of args
+        :param args: dict of args
+        :return: None
+        """
         self.__init__({k: v for k, v in args.items() if not v == ""})
 
     def is_valid(self) -> bool:
+        """
+        Check if config is valid
+        :return: always 'False' for base class 'Config'
+        """
         return False
 
     def _init_vault_files(self):
@@ -330,11 +344,19 @@ class NamespacesConfig(Config):
 
 
 def as_list(value):
+    """
+    Return the given value as list
+      None = []
+      "str" = ["str"]
+      ["abc",...] = ["abc",...]
+    :param value: value to be converted to list
+    :return: a list based on the given value
+    """
     if value is None:
         return []
-    elif isinstance(value, list):
+    if isinstance(value, list):
         return value
-    elif isinstance(value, str):
+    if isinstance(value, str):
         return [x.strip() for x in value.split(',')]
 
     return []

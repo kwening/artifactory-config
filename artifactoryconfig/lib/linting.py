@@ -1,3 +1,6 @@
+"""
+Functions to lint artifactory configs within a defined folder
+"""
 import abc
 import logging
 import sys
@@ -5,11 +8,13 @@ import sys
 from .helper import LintingConfig
 
 
-def lint_config(local_config, config):
-    lint_rules(local_config, config)
-
-
-def lint_rules(local_config, config: LintingConfig):
+def lint_config(local_config, config: LintingConfig):
+    """
+    Run linting rules against configurations within a folder
+    :param local_config: dict, containing configs from a local folder
+    :param config: tool config
+    :return: None
+    """
     rules: list = [HelmMirrorRule(), UnusedGroupRule()]
     failed: bool = False
 
@@ -26,24 +31,42 @@ def lint_rules(local_config, config: LintingConfig):
 
 
 class LintingRule(abc.ABC):
+    """
+    Base class for all linting rules
+    """
     rule_id: str = ""
     messages: list = None
     severity: int = 0
 
     @abc.abstractmethod
     def has_failed(self, fail_level: int) -> bool:
-        pass
+        """
+        Check if a rules has been failed
+        :param fail_level: severity to fail rule
+        :return: True when failed, otherwise False
+        """
 
     @abc.abstractmethod
     def run_checks(self, config):
-        pass
+        """
+        Run the rule's checks
+        :param config: dict with config objects
+        :return: None
+        """
 
     def print_messages(self):
+        """
+        Print all messages created during run_checks
+        :return: None
+        """
         for message in self.messages:
             logging.info(f"[{self.rule_id}] {message}")
 
 
 class HelmMirrorRule(LintingRule):
+    """
+    Linting rule checks that each helm proxy has a corresponding mirror
+    """
     def __init__(self):
         self.rule_id = "hlm.001"
         self.severity = 10
@@ -64,6 +87,9 @@ class HelmMirrorRule(LintingRule):
 
 
 class UnusedGroupRule(LintingRule):
+    """
+    Linting rule searches for groups that are not used in permissions
+    """
     def __init__(self):
         self.rule_id = "sec.001"
         self.severity = 20

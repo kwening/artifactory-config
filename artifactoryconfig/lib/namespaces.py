@@ -1,3 +1,6 @@
+"""
+Functions to create permission target files from given namespace configurations
+"""
 import os
 import json
 import logging
@@ -8,7 +11,13 @@ from jinja2 import Template
 from .helper import as_list
 
 
-def write_group(group: str, config):
+def _write_group(group: str, config):
+    """
+    Write a group json file to the config folder
+    :param group: group name
+    :param config: tool config
+    :return: None
+    """
     logging.info(f"Creating group '{group}'")
 
     if config.groups_output_dir:
@@ -40,6 +49,12 @@ def write_group(group: str, config):
 
 
 def process_namespaces(config, local_config):
+    """
+    Loop over a folder with namespace configurations and create related json/yaml files
+    :param config: tool config
+    :param local_config:
+    :return:
+    """
     logging.info(f"Reading namespace definitions from '{config.namespaces_file}'")
     with open(config.namespaces_file, encoding='utf-8') as yaml_file:
         namespace_definitions = yaml.safe_load(yaml_file) or {}
@@ -72,13 +87,13 @@ def process_namespaces(config, local_config):
         global_internal_thirdparty.exclude_patterns.extend(namespace.thirdparty_restricted_patterns)
         global_public_thirdparty.include_patterns.extend(namespace.thirdparty_public_patterns)
 
-        write_permission_target(
+        _write_permission_target(
             PermissionTarget(namespace, repositories=config.internal_repos), config)
-        write_permission_target(
+        _write_permission_target(
             ThirdpartyPermissionTarget(namespace, repositories=config.thirdparty_repos), config)
 
         # Create markdown entries
-        add_markdown_row(namespace, namespaces_markdown)
+        _add_markdown_row(namespace, namespaces_markdown)
 
         if os.path.exists(config.group_template):
             # Check for missing groups and create them
@@ -86,33 +101,38 @@ def process_namespaces(config, local_config):
                 group_name, *_b = group.split(":")
                 logging.info(f"Group in namespace found: {group_name}")
                 if not local_config.get('groups').get(group_name):
-                    write_group(group_name, config)
+                    _write_group(group_name, config)
         else:
             logging.warning(f"Group template file '{config.group_template}' doesn't exist - "
                             f"skipping group auto creation")
 
     # Write public permission
-    write_permission_target(global_public, config)
+    _write_permission_target(global_public, config)
 
     # Write internal permission
-    write_permission_target(global_public_thirdparty, config)
+    _write_permission_target(global_public_thirdparty, config)
 
     # Write public thirdparty permission
-    write_permission_target(global_internal, config)
+    _write_permission_target(global_internal, config)
 
     # Write internal thirdparty permission
-    write_permission_target(global_internal_thirdparty, config)
+    _write_permission_target(global_internal_thirdparty, config)
 
     # Write markdown doc
     write_markdown_doc(namespaces_markdown, config)
 
 
-def get_item_with_permissions(item: str):
+def _get_item_with_permissions(item: str):
+    """
+    Splits an item by ':' (if exists) and returns its name and a list of permissions
+    :param item: an item, i.e. 'user:rw' or 'user'
+    :return: items name and list of permissions
+    """
     permission = "rwad"
-    user = item
+    item_name = item
     permissions = []
     if ":" in item:
-        (user, permission) = item.split(':')
+        (item_name, permission) = item.split(':')
 
     if "r" in permission:
         permissions.append("read")
@@ -123,20 +143,29 @@ def get_item_with_permissions(item: str):
     if "d" in permission:
         permissions.append("delete")
 
-    return user, permissions
+    return item_name, permissions
 
 
 def write_markdown_doc(namespaces: list, config):
+    """
+    Write a list of markdown entries to a file
+    :param namespaces: list of markdown formatted entries
+    :param config: tool config
+    :return: None
+    """
     file_name = config.output_dir + 'permissions/' + 'namespaces.md'
+    logging.info(f"Writing markdown doc to '{file_name}'")
+
     with open(file_name, 'w+', encoding='utf-8') as markdown_file:
         for entry in namespaces:
             markdown_file.write(f"{entry}\n")
 
-    logging.info(f"Writing markdown doc to '{file_name}'")
-
 
 @dataclass
 class Namespace:
+    """
+    Refers to a defined namespace in the configuration
+    """
     name: str
     groups: list
     users: list
@@ -164,6 +193,10 @@ class Namespace:
         self.additional_repos = as_list(initial_dict.get('additionalRepos'))
 
     def get_all_patterns(self) -> list:
+        """
+        Get all namespace patterns for internal repos
+        :return: list of patterns
+        """
         patterns = []
         patterns.extend(self.public_patterns)
         patterns.extend(self.internal_patterns)
@@ -172,6 +205,10 @@ class Namespace:
         return patterns
 
     def get_all_thirdparty_patterns(self) -> list:
+        """
+        Get all namespace patterns for thirdparty repos
+        :return: list of patterns
+        """
         patterns = []
         patterns.extend(self.thirdparty_public_patterns)
         patterns.extend(self.thirdparty_internal_patterns)
@@ -182,6 +219,9 @@ class Namespace:
 
 @dataclass
 class PermissionTarget:
+    """
+    Permission target for internal repos
+    """
     name: str
     include_patterns: list
     exclude_patterns: list
@@ -199,20 +239,20 @@ class PermissionTarget:
         if users is None:
             self.users = {}
         else:
-            self.users = dict((get_item_with_permissions(x)) for x in users)
+            self.users = dict((_get_item_with_permissions(x)) for x in users)
 
         if groups is None:
             self.groups = {}
         else:
-            self.groups = dict((get_item_with_permissions(x)) for x in groups)
+            self.groups = dict((_get_item_with_permissions(x)) for x in groups)
 
         self.include_patterns = []
         self.exclude_patterns = []
 
         if namespace is not None:
             self.name = "ns-" + namespace.name
-            self.users = dict((get_item_with_permissions(x)) for x in namespace.users)
-            self.groups = dict((get_item_with_permissions(x)) for x in namespace.groups)
+            self.users = dict((_get_item_with_permissions(x)) for x in namespace.users)
+            self.groups = dict((_get_item_with_permissions(x)) for x in namespace.groups)
             self.include_patterns = namespace.get_all_patterns()
 
             if namespace.additional_repos:
@@ -221,6 +261,10 @@ class PermissionTarget:
             self.name = name
 
     def as_dict(self) -> dict:
+        """
+        Return the current permission target as dict
+        :return: a dict with the permission targets fields
+        """
         add_build_info = False
 
         if 'artifactory-build-info' in self.repositories:
@@ -246,6 +290,9 @@ class PermissionTarget:
 
 @dataclass
 class ThirdpartyPermissionTarget(PermissionTarget):
+    """
+    Permission target for thirdparty repos
+    """
     def __init__(self, namespace: Namespace = None, name: str = None, repositories=None, users=None,
                  groups=None):
         PermissionTarget.__init__(self, namespace, name, repositories, users, groups)
@@ -255,7 +302,13 @@ class ThirdpartyPermissionTarget(PermissionTarget):
             self.include_patterns = namespace.get_all_thirdparty_patterns()
 
 
-def write_permission_target(permission_target: PermissionTarget, config):
+def _write_permission_target(permission_target: PermissionTarget, config):
+    """
+    Create a config file for a permission target
+    :param permission_target: the permission target object
+    :param config: tool config
+    :return: None
+    """
     if not permission_target.include_patterns and not permission_target.exclude_patterns:
         logging.info(f"Skipping permission target '{permission_target.name}'")
         return
@@ -272,7 +325,13 @@ def write_permission_target(permission_target: PermissionTarget, config):
     logging.info(f"Writing permission target '{permission_target.name}' to '{file_name}'")
 
 
-def add_markdown_row(namespace: Namespace, markdown_entries):
+def _add_markdown_row(namespace: Namespace, markdown_entries):
+    """
+    Create a markdown entry from a namespace object and add it to the list of markdown entries
+    :param namespace: the namespace to be added
+    :param markdown_entries: list of markdown entries
+    :return: None
+    """
     include_patterns = list(set(namespace.get_all_patterns()))
     include_patterns.sort()
     patterns = ', '.join(e.replace('*', '\\*') for e in include_patterns)

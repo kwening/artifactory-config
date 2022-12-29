@@ -44,7 +44,6 @@ def init_connection(url: str, username: str, token: str):
 
 
 def _get_configuration() -> dict:
-    global ARTIFACTORY
     logging.info("#####   Fetching current configuration from artifactory   #####")
     current_config = {'users': ARTIFACTORY.users.list(),
                       'groups': ARTIFACTORY.groups.list(),
@@ -69,7 +68,6 @@ def apply_configuration(config_objects: dict, config: DeployConfig):
     :param config: configuration based on cli parameters
     :return: None
     """
-    global ARTIFACTORY
     global APP_CONFIG
     current_config = _get_configuration()
     APP_CONFIG = config
@@ -89,7 +87,6 @@ def apply_configuration(config_objects: dict, config: DeployConfig):
 
 
 def __apply_user_config(config_objects, current_config, dry_run: bool):
-    global ARTIFACTORY
     logging.info("#####   Applying user configs   #####")
 
     for key, value in config_objects['users'].items():
@@ -122,7 +119,6 @@ def __apply_user_config(config_objects, current_config, dry_run: bool):
 
 
 def __apply_group_config(config_objects, current_config, dry_run: bool):
-    global ARTIFACTORY
     logging.info("#####   Applying group configs   #####")
 
     for key, value in config_objects['groups'].items():
@@ -150,7 +146,6 @@ def __apply_group_config(config_objects, current_config, dry_run: bool):
 
 
 def __apply_permission_config(config_objects, current_config, dry_run: bool):
-    global ARTIFACTORY
     logging.info("#####   Applying permission configs   #####")
 
     for key, value in config_objects['permissions'].items():
@@ -176,7 +171,6 @@ def __apply_permission_config(config_objects, current_config, dry_run: bool):
 
 
 def __apply_local_repo_config(config_objects, current_config, dry_run: bool):
-    global ARTIFACTORY
     logging.info("#####   Applying local repo configs   #####")
 
     for key, value in config_objects.items():
@@ -205,7 +199,6 @@ def __apply_local_repo_config(config_objects, current_config, dry_run: bool):
 
 
 def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
-    global ARTIFACTORY
     logging.info("#####   Applying remote repo configs   #####")
 
     for key, value in config_objects.items():
@@ -235,7 +228,6 @@ def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
 
 
 def __apply_virtual_repo_config(config_objects, current_config, dry_run: bool):
-    global ARTIFACTORY
     logging.info("#####   Applying virtual repo configs   #####")
 
     for key, value in config_objects.items():
@@ -283,8 +275,6 @@ def __map_fields(obj, mapping):
 
 
 def __log_unmanaged_items(item_type: str, items: list):
-    global APP_CONFIG
-
     # Make a regex that matches if any of our regexes match.
     ignore_regex = "(" + ")|(".join(APP_CONFIG.unmanaged_ignores) + ")"
 
