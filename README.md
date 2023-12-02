@@ -66,18 +66,14 @@ All secrets can be referenced by their key using Jinja2 templating engine.
 
 ## Local Development
 
-Dependencies are managed by `pipenv`.
+Dependencies are managed by `poetry`.
 
 ```shell
-pipenv --python 3.9
-pipenv shell
-pipenv install pyartifactory
-pipenv install pytest --dev
-#pipenv install -e .
-#pipenv update
+poetry shell
+poetry install
 
 # Create requirements.txt file (i.e. for Docker build)
-pipenv lock --keep-outdated --requirements > requirements.txt
+poetry export --without-hashes -f requirements.txt --output requirements.txt
 
 docker build -t kwening/artifactory-config:1.0.0 .
 ```

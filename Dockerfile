@@ -1,4 +1,4 @@
-FROM python:3.9-alpine AS builder
+FROM python:3.10-alpine AS builder
 #ENV         PYTHONUNBUFFERED=1
 ENV ARTIFACTORY_URL=""
 ENV ARTIFACTORY_USER=""
