@@ -60,6 +60,12 @@ def process_namespaces(config, local_config):
     global_public_thirdparty = ThirdpartyPermissionTarget(name="global-public-thirdparty",
                                                           repositories=config.thirdparty_repos,
                                                           groups=config.public_groups, users=config.public_users)
+    global_internal_archive = ArchivePermissionTarget(name="global-internal-archive",
+                                                      repositories=config.archive_repos,
+                                                      groups=config.internal_groups, users=config.internal_users)
+    global_public_archive = ArchivePermissionTarget(name="global-public-archive",
+                                                    repositories=config.archive_repos,
+                                                    groups=config.public_groups, users=config.public_users)
 
     namespaces_markdown = [f"| Namespace | Patterns | Thirdparty-Patterns | Zugriffsberechtigung",
                            f"| :--- | :--- | :--- | :--- |"]
@@ -75,6 +81,13 @@ def process_namespaces(config, local_config):
 
         write_permission_target(PermissionTarget(namespace, repositories=config.internal_repos), config)
         write_permission_target(ThirdpartyPermissionTarget(namespace, repositories=config.thirdparty_repos), config)
+
+        if config.archive_repos:
+            global_internal_archive.exclude_patterns.extend(namespace.restricted_patterns)
+            global_public_archive.include_patterns.extend(namespace.public_patterns)
+            global_internal_archive.exclude_patterns.extend(namespace.thirdparty_restricted_patterns)
+            global_public_archive.include_patterns.extend(namespace.thirdparty_public_patterns)
+            write_permission_target(ArchivePermissionTarget(namespace, repositories=config.archive_repos), config)
 
         # Create markdown entries
         add_markdown_row(namespace, namespaces_markdown)
@@ -94,13 +107,20 @@ def process_namespaces(config, local_config):
     write_permission_target(global_public, config)
 
     # Write internal permission
-    write_permission_target(global_public_thirdparty, config)
+    write_permission_target(global_internal, config)
 
     # Write public thirdparty permission
-    write_permission_target(global_internal, config)
+    write_permission_target(global_public_thirdparty, config)
 
     # Write internal thirdparty permission
     write_permission_target(global_internal_thirdparty, config)
+
+    if config.archive_repos:
+        # Write internal archive permission
+        write_permission_target(global_internal_archive, config)
+
+        # Write public archive permission
+        write_permission_target(global_public_archive, config)
 
     # Write markdown doc
     write_markdown_doc(namespaces_markdown, config)
@@ -249,6 +269,23 @@ class ThirdpartyPermissionTarget(PermissionTarget):
         if namespace is not None:
             self.name = self.name + "-thirdparty"
             self.include_patterns = namespace.get_all_thirdparty_patterns()
+
+
+@dataclass
+class ArchivePermissionTarget(PermissionTarget):
+    def __init__(self, namespace: Namespace = None, name: str = None, repositories=None, users=None, groups=None):
+        PermissionTarget.__init__(self, namespace, name, repositories, users, groups)
+
+        if namespace is not None:
+            self.name = self.name + "-archive"
+            self.include_patterns = namespace.get_all_patterns() + namespace.get_all_thirdparty_patterns()
+
+        if self.groups is not None:
+            for group in self.groups:
+                self.groups[group] = ['read']
+        if self.users is not None:
+            for user in self.users:
+                self.users[user] = ['read']
 
 
 def write_permission_target(permission_target: PermissionTarget, config):

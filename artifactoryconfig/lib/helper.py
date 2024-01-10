@@ -286,6 +286,7 @@ class NamespacesConfig(Config):
     namespaces_file: str = ""
     internal_repos: list = None
     thirdparty_repos: list = None
+    archive_repos: list = None
     internal_users: list = None
     public_users: list = None
     internal_groups: list = None
@@ -308,6 +309,7 @@ class NamespacesConfig(Config):
             if key == "repos":
                 self.internal_repos = as_list(initial_data[key].get('internal', None))
                 self.thirdparty_repos = as_list(initial_data[key].get('thirdparty', None))
+                self.archive_repos = as_list(initial_data[key].get('archive', None))
             elif key == "users":
                 self.public_users = as_list(initial_data[key].get('public', None))
                 self.internal_users = as_list(initial_data[key].get('internal', None))
