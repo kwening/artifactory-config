@@ -49,11 +49,27 @@ def get_configuration() -> dict:
     return current_config
 
 
+def __check_group_config(current_config):
+    logging.info("#####   Checking group configs in Artifactory   #####")
+    all_groups = {}
+
+    for item in current_config['groups']:
+        if str.lower(item.name) not in all_groups:
+            all_groups[str.lower(item.name)] = 1
+        else:
+            logging.info(f"Group '{str.lower(item.name)}' found multiple times")
+
+        if str.lower(item.name) != item.name:
+            logging.info(f"Group '{item.name}' has uppercase characters")
+
+
 def apply_configuration(config_objects: dict, config: DeployConfig):
     global art
     global app_config
     current_config = get_configuration()
     app_config = config
+
+    __check_group_config(current_config)
 
     if config.dry_run:
         logging.info("Dry run enabled - no changes will be deployed")

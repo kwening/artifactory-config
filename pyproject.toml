@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "artifactory-config"
+version = "0.1.0"
+description = "A tool to prepare and upload configuration for Artifactory binary manager"
+authors = ["Klaus Wening <kwening@gmx.de>"]
+readme = "README.md"
+packages = [{include = "artifactoryconfig"}]
+
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+pyyaml = "^6.0.1"
+# pin to <2.0.0 because of missing state field in Artifactory API response
+pyartifactory = "<2.0.0"
+jinja2 = "^3.1.2"
+ansible-core = "^2.16.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+pyinstaller = "^6.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
