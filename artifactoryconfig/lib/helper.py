@@ -251,6 +251,7 @@ class DeployConfig(Config):
     artifactory_token: str = ""
     unmanaged_ignores: list = None
     dry_run: bool = False
+    force_lowercase_groups: bool = False
 
     def __init__(self, initial_data=None):
         Config.__init__(self, initial_data)
@@ -274,7 +275,11 @@ class LintingConfig(Config):
 
         self._init_vault_files()
 
-    def is_valid(self) -> bool:
+        for key in initial_data:
+            if key not in Config.__dict__:
+                setattr(self, key, initial_data[key])
+
+def is_valid(self) -> bool:
         return True
 
 

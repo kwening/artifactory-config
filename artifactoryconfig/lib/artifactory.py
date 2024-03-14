@@ -12,6 +12,7 @@ from .helper import DeployConfig
 art: Artifactory
 app_config: DeployConfig
 
+
 # Debug requests
 # requests_log = logging.getLogger("requests.packages.urllib3")
 # requests_log.setLevel(logging.DEBUG)
@@ -66,24 +67,24 @@ def __check_group_config(current_config):
 def apply_configuration(config_objects: dict, config: DeployConfig):
     global art
     global app_config
-    current_config = get_configuration()
+    upstream_config = get_configuration()
     app_config = config
 
-    __check_group_config(current_config)
+    __check_group_config(upstream_config)
 
     if config.dry_run:
         logging.info("Dry run enabled - no changes will be deployed")
 
-    __apply_local_repo_config(config_objects['localRepositories'], current_config['localRepos'], config.dry_run)
-    __apply_remote_repo_config(config_objects['remoteRepositories'], current_config['remoteRepos'], config.dry_run)
-    __apply_virtual_repo_config(config_objects['virtualRepositories'], current_config['virtualRepos'],
+    __apply_local_repo_config(config_objects['localRepositories'], upstream_config['localRepos'], config.dry_run)
+    __apply_remote_repo_config(config_objects['remoteRepositories'], upstream_config['remoteRepos'], config.dry_run)
+    __apply_virtual_repo_config(config_objects['virtualRepositories'], upstream_config['virtualRepos'],
                                 config.dry_run)
-    __apply_user_config(config_objects, current_config, config.dry_run)
-    __apply_group_config(config_objects, current_config, config.dry_run)
-    __apply_permission_config(config_objects, current_config, config.dry_run)
+    __apply_user_config(config_objects, upstream_config, config.dry_run)
+    __apply_group_config(config_objects, upstream_config, config.dry_run, config.force_lowercase_groups)
+    __apply_permission_config(config_objects, upstream_config, config.dry_run)
 
 
-def __apply_user_config(config_objects, current_config, dry_run: bool):
+def __apply_user_config(config_objects, upstream_config, dry_run: bool):
     global art
     logging.info("#####   Applying user configs   #####")
 
@@ -92,13 +93,13 @@ def __apply_user_config(config_objects, current_config, dry_run: bool):
         # value = map_fields(value, {'disableUIAccess': 'disable_ui',
         #                            'profileUpdatable': 'profile_updatable'})
         try:
-            if any(x.name == key for x in current_config['users']):
+            if any(x.name == key for x in upstream_config['users']):
                 user = User(**value)
 
                 if not dry_run:
                     art.users.update(user)
                 action = 'updated'
-                current_config['users'].remove(next((x for x in current_config['users'] if x.name == key), None))
+                upstream_config['users'].remove(next((x for x in upstream_config['users'] if x.name == key), None))
             else:
                 # TODO password via template or generated
                 if 'password' not in value:
@@ -112,23 +113,34 @@ def __apply_user_config(config_objects, current_config, dry_run: bool):
         except requests.exceptions.HTTPError as e:
             __log_api_error(e)
 
-    __log_unmanaged_items("user", [item.name for item in current_config['users']])
+    __log_unmanaged_items("user", [item.name for item in upstream_config['users']])
 
 
-def __apply_group_config(config_objects, current_config, dry_run: bool):
+def __apply_group_config(config_objects, upstream_config, dry_run: bool, force_lowercase_groups: bool = False):
     global art
     logging.info("#####   Applying group configs   #####")
+
+    if force_lowercase_groups:
+        logging.info("Force lowercase groupnames enabled")
 
     for key, value in config_objects['groups'].items():
         logging.info(f"Processing group '{key}'")
         group = Group(**value)
+        # Delete lowercase group if force_lowercase_groups is enabled
 
         try:
-            if any(x.name == key for x in current_config['groups']):
+            if any(x.name == key for x in upstream_config['groups']):
                 if not dry_run:
+                    if force_lowercase_groups and group.name != group.name.lower():
+                        logging.info(f"Migrating group '{group.name}' to lowercase, deleting group in Artifactory and "
+                                     f"re-creating with lowercase name")
+                        art.groups.delete(group.name)
+                        group.name = group.name.lower()
+                        art.groups.create(group)
+
                     art.groups.update(group)
                 action = 'updated'
-                current_config['groups'].remove(next((x for x in current_config['groups'] if x.name == key), None))
+                upstream_config['groups'].remove(next((x for x in upstream_config['groups'] if x.name == key), None))
             else:
                 if not dry_run:
                     art.groups.create(group)
@@ -139,10 +151,10 @@ def __apply_group_config(config_objects, current_config, dry_run: bool):
         except requests.exceptions.HTTPError as e:
             __log_api_error(e)
 
-    __log_unmanaged_items("group", [item.name for item in current_config['groups']])
+    __log_unmanaged_items("group", [item.name for item in upstream_config['groups']])
 
 
-def __apply_permission_config(config_objects, current_config, dry_run: bool):
+def __apply_permission_config(config_objects, upstream_config, dry_run: bool):
     global art
     logging.info("#####   Applying permission configs   #####")
 
@@ -151,12 +163,12 @@ def __apply_permission_config(config_objects, current_config, dry_run: bool):
         permission = PermissionV2(**value)
 
         try:
-            if any(x.name == key for x in current_config['permissions']):
+            if any(x.name == key for x in upstream_config['permissions']):
                 if not dry_run:
                     art.permissions.update(permission)
                 action = 'updated'
-                current_config['permissions'].remove(
-                    next((x for x in current_config['permissions'] if x.name == key), None))
+                upstream_config['permissions'].remove(
+                    next((x for x in upstream_config['permissions'] if x.name == key), None))
             else:
                 if not dry_run:
                     art.permissions.create(permission)
@@ -165,10 +177,10 @@ def __apply_permission_config(config_objects, current_config, dry_run: bool):
         except requests.exceptions.HTTPError as e:
             __log_api_error(e)
 
-    __log_unmanaged_items("permission", [item.name for item in current_config['permissions']])
+    __log_unmanaged_items("permission", [item.name for item in upstream_config['permissions']])
 
 
-def __apply_local_repo_config(config_objects, current_config, dry_run: bool):
+def __apply_local_repo_config(config_objects, upstream_config, dry_run: bool):
     global art
     logging.info("#####   Applying local repo configs   #####")
 
@@ -180,12 +192,12 @@ def __apply_local_repo_config(config_objects, current_config, dry_run: bool):
         local_repo = LocalRepository(**value)
 
         try:
-            if any(x.key == key for x in current_config):
+            if any(x.key == key for x in upstream_config):
                 if not dry_run:
                     art.repositories.update_repo(local_repo)
                 action = 'updated'
-                current_config.remove(
-                    next((x for x in current_config if x.key == key), None))
+                upstream_config.remove(
+                    next((x for x in upstream_config if x.key == key), None))
             else:
                 if not dry_run:
                     art.repositories.create_repo(local_repo)
@@ -194,10 +206,10 @@ def __apply_local_repo_config(config_objects, current_config, dry_run: bool):
         except requests.exceptions.HTTPError as e:
             __log_api_error(e)
 
-    __log_unmanaged_items("local repo", [item.key for item in current_config])
+    __log_unmanaged_items("local repo", [item.key for item in upstream_config])
 
 
-def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
+def __apply_remote_repo_config(config_objects, upstream_config, dry_run: bool):
     global art
     logging.info("#####   Applying remote repo configs   #####")
 
@@ -210,12 +222,12 @@ def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
         remote_repo = RemoteRepository(**value)
 
         try:
-            if any(x.key == key for x in current_config):
+            if any(x.key == key for x in upstream_config):
                 if not dry_run:
                     art.repositories.update_repo(remote_repo)
                 action = 'updated'
-                current_config.remove(
-                    next((x for x in current_config if x.key == key), None))
+                upstream_config.remove(
+                    next((x for x in upstream_config if x.key == key), None))
             else:
                 if not dry_run:
                     art.repositories.create_repo(remote_repo)
@@ -224,10 +236,10 @@ def __apply_remote_repo_config(config_objects, current_config, dry_run: bool):
         except requests.exceptions.HTTPError as e:
             __log_api_error(e)
 
-    __log_unmanaged_items("remote repo", [item.key for item in current_config])
+    __log_unmanaged_items("remote repo", [item.key for item in upstream_config])
 
 
-def __apply_virtual_repo_config(config_objects, current_config, dry_run: bool):
+def __apply_virtual_repo_config(config_objects, upstream_config, dry_run: bool):
     global art
     logging.info("#####   Applying virtual repo configs   #####")
 
@@ -239,12 +251,12 @@ def __apply_virtual_repo_config(config_objects, current_config, dry_run: bool):
         repo = VirtualRepository(**value)
 
         try:
-            if any(x.key == key for x in current_config):
+            if any(x.key == key for x in upstream_config):
                 if not dry_run:
                     art.repositories.update_repo(repo)
                 action = 'updated'
-                current_config.remove(
-                    next((x for x in current_config if x.key == key), None))
+                upstream_config.remove(
+                    next((x for x in upstream_config if x.key == key), None))
             else:
                 if not dry_run:
                     art.repositories.create_repo(repo)
@@ -253,7 +265,7 @@ def __apply_virtual_repo_config(config_objects, current_config, dry_run: bool):
         except requests.exceptions.HTTPError as e:
             __log_api_error(e)
 
-    __log_unmanaged_items("virtual repo", [item.key for item in current_config])
+    __log_unmanaged_items("virtual repo", [item.key for item in upstream_config])
 
 
 def __log_api_error(e):
